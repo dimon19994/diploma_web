@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Побудова Графіку{% endblock %}
+
+{% block content %}
+    <div class="container bgcont col-8">
+        <h1 class="text-center my-5">Побудова двічі диференційованої кривої</h1>
+    </div>
+    <div class="container bgcont col-11">
+        <div class="accordion" id="menu">
+            <!-- item-1 -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#item-1">
+                        Імпорт даних
+                    </button>
+                </h2>
+                <div id="item-1" class="accordion-collapse collapse show">
+                    <div class="d-flex justify-content-center">
+                        <div id="image_div" style="position: relative">
+                            <img id="input_data_img" src="{{ url_for('static', filename='img/base_input.png') }}"
+                                 class="img-thumbnail m-3"
+                                 alt="input_data_img">
+                            <span style='position: absolute; left: 200px; top: 200px; border-radius: 50px;
+                                         background: #ffa500; height: 10px; width: 10px; display:none'></span>
+                        </div>
+                        <form class="col-5" id="input_data" method="post">
+                            <div class="m-3 col-11">
+                                <label for="file_name" class="form-label">Оберіть файл*</label>
+                                <input class="form-control" type="file" id="file_name" name="file_name"
+                                       accept=".csv,.txt" required>
+                            </div>
+                            <div class="m-3 col-11">
+                                <label for="separator" class="form-label">Оберіть роздільник*</label>
+                                <select id="separator" class="form-select" name="separator" required>
+                                    <option value="," selected>,</option>
+                                    <option value=";">;</option>
+                                    <option value=":">:</option>
+                                    <option value=" ">Пробіл</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="m-3 btn btn-primary">Імпортувати дані</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <!-- item-2 -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#item-2">
+                        Визначення типу точок
+                    </button>
+                </h2>
+                <div id="item-2" class="accordion-collapse collapse">
+                    <div class="accordion-body" id="points_type_pagination">
+                        <div class="row justify-content-center" id="data-container"></div>
+                        <div id="pagination-container" style="padding: 20px 20px 0"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- item-3 -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#item-3">
+                        Параметри побудови
+                    </button>
+                </h2>
+                <div id="item-3" class="accordion-collapse collapse">
+                    <div class="accordion-body">
+                        <form class="col-5" id="build_params">
+                            <div class="row g-3 align-items-center">
+                                <div class="col-auto">
+                                    <label for="iter_count" class="col-form-label">К-ть ітерацій</label>
+                                </div>
+                                <div class="col-auto">
+                                    <input type="text" id="iter_count" class="form-control" name="iter_count"
+                                           aria-describedby="passwordHelpInline">
+                                </div>
+                            </div>
+                            <div class="row g-3 align-items-center">
+                                <div class="col-auto">
+                                    <label for="start_value" class="col-form-label">Початкове значення пружності</label>
+                                </div>
+                                <div class="col-auto">
+                                    <input type="text" id="start_value" class="form-control" name="start_value"
+                                           aria-describedby="passwordHelpInline">
+                                </div>
+                            </div>
+                            <div class="row g-3 align-items-center">
+                                <div class="col-auto">
+                                    <label for="end_value" class="col-form-label">Кінцеве значення пружності</label>
+                                </div>
+                                <div class="col-auto">
+                                    <input type="text" id="end_value" class="form-control" name="end_value"
+                                           aria-describedby="passwordHelpInline">
+                                </div>
+                            </div>
+                            <div class="row g-3 align-items-center">
+                                <div class="col-auto">
+                                    <label for="subitems" class="col-form-label">К-ть підвідрізків</label>
+                                </div>
+                                <div class="col-auto">
+                                    <input type="text" id="subitems" class="form-control" name="subitems"
+                                           aria-describedby="passwordHelpInline">
+                                </div>
+                            </div>
+                            <div class="row g-3 align-items-center">
+                                <div class="col-auto">
+                                    <label for="curve_type" class="col-form-label">Тип кривої</label>
+                                </div>
+                                <div class="col-auto">
+                                    <select class="form-select" id="curve_type">
+                                        <option value="not_loop">Незамкнений контур</option>
+                                        <option value="loop">Замкнений контур</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row g-3 align-items-center" id="align_1_container">
+                                <div class="col-auto">
+                                    <label for="align_1" class="col-form-label">Початковий кути</label>
+                                </div>
+                                <div class="col-auto">
+                                    <input type="text" id="align_1" class="form-control" name="align_1"
+                                           aria-describedby="passwordHelpInline">
+                                </div>
+                            </div>
+{#                            <div class="row g-3 align-items-center">#}
+{#                                <div class="col-auto">#}
+{#                                    <label for="direction_1" class="col-form-label">Напрям початкового кута</label>#}
+{#                                </div>#}
+{#                                <div class="col-auto">#}
+{#                                    <select class="form-select" id="direction_1">#}
+{#                                        <option value="1">За годинниковою</option>#}
+{#                                        <option value="-1">Проти годинникової</option>#}
+{#                                    </select>#}
+{#                                </div>#}
+{#                            </div>#}
+                            <div class="row g-3 align-items-center" id="align_2_container">
+                                <div class="col-auto">
+                                    <label for="align_2" class="col-form-label">Кінцевий кути</label>
+                                </div>
+                                <div class="col-auto">
+                                    <input type="text" id="align_2" class="form-control" name="align_2"
+                                           aria-describedby="passwordHelpInline">
+                                </div>
+                            </div>
+{#                            <div class="row g-3 align-items-center">#}
+{#                                <div class="col-auto">#}
+{#                                    <label for="direction_2" class="col-form-label">Напрям кінцевого кута</label>#}
+{#                                </div>#}
+{#                                <div class="col-auto">#}
+{#                                    <select class="form-select" id="direction_2">#}
+{#                                        <option value="1">За годинниковою</option>#}
+{#                                        <option value="-1">Проти годинникової</option>#}
+{#                                    </select>#}
+{#                                </div>#}
+{#                            </div>#}
+                            <div class="form-check form-check-reverse">
+                                <input class="form-check-input" type="checkbox" value="1" id="save_data">
+                                <label class="form-check-label" for="save_data">
+                                    Зберегти дані
+                                </label>
+                            </div>
+                            <button type="button" class="m-3 btn btn-primary" id="calculate">Побудувати</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <!-- item-4 -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#item-4">
+                        Результат
+                    </button>
+                </h2>
+                <div id="item-4" class="accordion-collapse collapse">
+                    <div class="container m-0">
+                        <section id="image-carousel" class="splide" aria-label="Beautiful Images">
+                            <div class="splide__track">
+                                <ul class="splide__list" id="image_box">
+
+                                </ul>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
+{% block javascript %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/send_input_data_form.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pagination.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/splide.min.js') }}"></script>
+
+{% endblock javascript %}
