@@ -214,9 +214,16 @@ class Calculate(_Controller):
             #         point_type = np.insert(point_type, 1, 2)
             #     file_dataset_len = (len(x) - 1)
 
-            if curve_type != "loop" and iteration <= 2:
-                x = D_j_coreg[0, ::parts//3]
-                y = D_j_coreg[1, ::parts//3]
+            if curve_type != "loop" and iteration <= 4 and (len(x) - len(x_base)) < 30:
+                for im in range(2, int(parts**0.5)+1):
+                    if parts % im == 0:
+                        im_points_count = im
+                        break
+                else:
+                    im_points_count = parts
+
+                x = D_j_coreg[0, ::parts//im_points_count]
+                y = D_j_coreg[1, ::parts//im_points_count]
 
                 for i in range(len(x) - len(point_type)):
                     point_type = np.insert(point_type, 1, 2)
