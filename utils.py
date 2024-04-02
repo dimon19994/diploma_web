@@ -131,7 +131,7 @@ def klotoid_align_value_count(d, pi_coef = 0, klotoid=False, index=1, clock="clo
         elif psi[0] < 0 and psi[1] > 0:
             print(4, end=" ")
             if klotoid and i == index:
-                psis = np.append(psis, 2 * pi + np.arcsin(psi[0]))
+                psis = np.append(psis, (3 * pi) / 2 + pi/2 + np.arcsin(psi[0]))
             else:
                 psis = np.append(psis, np.arcsin(psi[0]))
         elif round(psi[0], 5) == 0 and round(psi[1], 5) == 1:

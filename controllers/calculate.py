@@ -84,7 +84,7 @@ class Calculate(_Controller):
         response_images = []
 
         pi_coef = 0
-        scale_clotoid_data = False
+        scale_clotoid_data = True
         rotate_switch = True
 
         for iteration in range(iterations):
@@ -150,7 +150,8 @@ class Calculate(_Controller):
 
 
             if scale_clotoid_data:
-                D_j_coreg = D_j_coreg * scale_coef * M_j_coreg[1][0]
+                if abs(M_j_coreg[1][0]) != 0:
+                    D_j_coreg = D_j_coreg * scale_coef * -M_j_coreg[1][0]
 
 
             x = D_j_coreg[0, ::parts]
