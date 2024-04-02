@@ -6,7 +6,6 @@ from controllers.calculate import Calculate
 
 
 display = Blueprint("display", __name__)
-# current_data = ""
 
 
 @display.route("/", methods=["GET"])

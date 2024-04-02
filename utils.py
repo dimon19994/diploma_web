@@ -1,14 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from math import pi, sqrt, sin, cos, radians, degrees
+from math import pi, sqrt, sin, cos, radians, cosh, sinh
 
 from constants import PLOT_DATA_ROUND, DPI_VALIE, PLOT_DISPLAY_SIZE, PLOT_LEGEND_FONT_SIZE, PLOT_MARKET_SIZE,\
                       PLOT_LINE_WIDTH, PLOT_TITLE_FONT_SIZE, PLOT_ANOTATE_FONT_SIZE, PLOT_ASIX_FONT_SIZE, I, E
-
-
-def get_request_data(request):
-    return dict(request.json if request.is_json else (request.form.items() or {}))
 
 
 def display_plot(arguments, labels, color_line, title, annotate_step, points_count, alpha=None, show=None, axis=None):
@@ -39,6 +35,7 @@ def display_plot(arguments, labels, color_line, title, annotate_step, points_cou
                 except:
                     y_add = 0
                 plt.annotate(j+1, (arguments[i][0][j] - 0.025 * scale_x + x_add, arguments[i][1][j] - 0.015 * scale_x + y_add), fontsize=PLOT_ANOTATE_FONT_SIZE)
+                plt.axis('equal')
                 # plt.annotate(j+1, (arguments[i][0][j], arguments[i][1][j]), fontsize=plot_annotate_font_size)
     plt.suptitle(title, fontsize=PLOT_TITLE_FONT_SIZE)
 
@@ -60,6 +57,7 @@ def display_plot(arguments, labels, color_line, title, annotate_step, points_cou
     plt.tight_layout()
 
     return plt
+
 
 def vector_cords(M, X, Y):
     d = np.array([])
@@ -84,6 +82,69 @@ def to_angle(x_a, y_a, x_b, y_b):
     cos_phi = (x_a * x_b + y_a * y_b) / (np.sqrt(x_a ** 2 + y_a ** 2) * np.sqrt(x_b ** 2 + y_b ** 2))
     return sin_phi, cos_phi
 
+def klotoid_align_value_count(d, pi_coef = 0, klotoid=False, index=1, clock="clockwise"):
+    psis = np.array([])
+
+    for i in range(2):
+        psi = to_angle(d[i][0], d[i][1], 1, 0)
+        if clock == "clockwise":
+            cof_1 = 1
+            cof_2 = 0
+            minis_cof = -1
+        else:
+            cof_1 = 0
+            cof_2 = 1
+            minis_cof = 1
+
+        if psi[0] > 0 and psi[1] > 0:
+            print(1, end=" ")
+            if klotoid and i == index:
+                if pi_coef % 2 == cof_1:
+                    if np.arcsin(psi[0]) > 0:
+                        pi_coef -= 1
+                    else:
+                        pi_coef += 1
+                psis = np.append(psis, pi_coef * pi - minis_cof * np.arcsin(psi[0]))
+            else:
+                psis = np.append(psis, np.arcsin(psi[0]))
+
+        elif psi[0] > 0 and psi[1] < 0:
+            print(2, end=" ")
+            if klotoid and i == index:
+                psis = np.append(psis, pi_coef * pi - np.arcsin(psi[0]))
+            else:
+                psis = np.append(psis, pi - np.arcsin(psi[0]))
+
+        elif psi[0] < 0 and psi[1] < 0:
+            print(3, end=" ")
+            if klotoid and i == index:
+                if pi_coef % 2 == cof_2:
+                    if np.arcsin(psi[0]) < 0:
+                        pi_coef -= 1
+                    else:
+                        pi_coef += 1
+                psis = np.append(psis, pi_coef * pi - minis_cof * np.arcsin(psi[0]))
+            else:
+                psis = np.append(psis, -pi - np.arcsin(psi[0]))
+
+        elif psi[0] < 0 and psi[1] > 0:
+            print(4, end=" ")
+            if klotoid and i == index:
+                psis = np.append(psis, pi_coef * pi - np.arcsin(psi[0]))
+            else:
+                psis = np.append(psis, np.arcsin(psi[0]))
+        elif round(psi[0], 5) == 0 and round(psi[1], 5) == 1:
+            psis = np.append(psis, np.arcsin(psi[0]))
+        elif round(psi[0], 5) == 0 and round(psi[1], 5) == -1:
+            psis = np.append(psis, np.arcsin(psi[0]))
+        elif round(psi[0], 5) == 1 and round(psi[1], 5) == 0:
+            psis = np.append(psis, np.arcsin(psi[0]))
+        elif round(psi[0], 5) == -1 and round(psi[1], 5) == 0:
+            psis = np.append(psis, np.arcsin(psi[0]))
+        else:
+            print(psi, "\nERROR!!!")
+
+    return psis, pi_coef
 
 def align_value_count(M, d, curve_type):
     psis_sin = np.array([])
@@ -135,38 +196,68 @@ def C_coef_value_count(M, S, C_proportion_coef):
     return (6/((sum(S)/M)**3))*C_proportion_coef
 
 
-def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, extra_psis=None, aligns=None):
+def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, extra_psis=None, aligns=None, iter=None):
     dims = 8 * M
     matrix = np.zeros((dims, dims))
     coefs = np.zeros((dims))
 
     if equation_type == "not_loop":
+        # k = 1/sum(S)
+        k = (1/1000)
+        chsh = False
+        additional_align = 0
+
+        # if iter > 4:
+        #     chsh = False
+        #     additional_align = 13 * ((iter) // 4)
+        #     # additional_align = 10 * (iter - 4)
+
+        if iter > 5:
+            k = k * (1.001 ** (iter - 5))
+
+        # print(iter, k)
+
         for i in range(M):
             # Рівняння зв'язку
             matrix[i*8+2, i*8], matrix[i*8+2, i*8+1], \
             matrix[i*8+2, i*8+2], matrix[i*8+2, i*8+3] = \
-                (1, S[i], S[i]**2/(2*I*E), S[i]**3/(6*I*E))
+                ((1, S[i], S[i] ** 2 / (2 * I * E), S[i] ** 3 / (6 * I * E))
+                if not chsh else
+                (1, S[i], (cosh(k*S[i]) - 1)/k**2, (sinh(k*S[i]) - k*S[i])/k**3))
+                # (1, S[i], (1 - cos(k * S[i])) / k ** 2, (k * S[i] - sin(k * S[i])) / k ** 3))
+
+
 
             matrix[i*8+3, i*8], matrix[i*8+3, i*8+1], \
             matrix[i*8+3, i*8+2], matrix[i*8+3, i*8+3] = \
-                (0, 1, S[i]/(I*E), S[i]**2/(2*I*E))
+                ((0, 1, S[i] / (I * E), S[i] ** 2 / (2 * I * E))
+                if not chsh else
+                (0, 1, (k*sinh(k*S[i]))/k**2, (cosh(k*S[i]) - 1)/k**2))
+                # (0, 1, k * sin(k * S[i]) / k ** 2, (1 - cos(k * S[i])) / k ** 2))
 
             matrix[i*8+4, i*8], matrix[i*8+4, i*8+1], \
             matrix[i*8+4, i*8+2], matrix[i*8+4, i*8+3] = \
-                (0, 0, 1, S[i])
+                ((0, 0, 1, S[i])
+                if not chsh else
+                (0, 0, cosh(k*S[i]), sinh(k*S[i])/k))
+                # (0, 0, cos(k * S[i]), sin(k * S[i]) / k))
+
 
             matrix[i*8+5, i*8], matrix[i*8+5, i*8+1], \
             matrix[i*8+5, i*8+2], matrix[i*8+5, i*8+3] = \
-                (0, 0, 0, 1)
+                ((0, 0, 0, 1)
+                if not chsh else
+                (0, 0, k*sinh(k*S[i]), cosh(k*S[i])))
+                # (0, 0, -k * sin(k * S[i]), cos(k * S[i])))
 
             matrix[i*8+2, i*8+4], matrix[i*8+3, i*8+5], matrix[i*8+4, i*8+6], matrix[i*8+5, i*8+7] = -1, -1, -1, -1
 
             if i < M - 1:
                 matrix[i*8+6, i*8+4], matrix[i*8+7, i*8+5], matrix[i*8+8, i*8+6], matrix[i*8+9, i*8+7] = 1, 1, 1, 1
                 matrix[i*8+6, (i+1)*8], matrix[i*8+7, (i+1)*8+1], matrix[i*8+8, (i+1)*8+2], matrix[i*8+9, (i+1)*8+3] = -1, -1, -1, -1
-                if point_type[i] == 0:
+                if point_type[i+1] == 0:
                     matrix[i*8+9, i*8+8] = -C
-                elif point_type[i] == 1:
+                elif point_type[i+1] == 1:
                     matrix[i*8+9, i*8+7] = 0
                     matrix[i*8+9, (i+1)*8+3] = 0
                     matrix[i*8+9, i*8+4] = 1
@@ -175,9 +266,19 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
             if P_align_coef is not None:
                 coefs[i*8+7] = -C*P_align_coef[i]
 
+        # --------------klotoid--------------
+        # coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
+        # coefs[-2] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
+        #
+        # matrix[0][0], matrix[1][1] = 1, 1
+        # matrix[-2][-3], matrix[-1][-2] = 1, 1
+        # --------------klotoid--------------
+
         coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
+        # coefs[1] = extra_psis[0]
         coefs[-1] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
         # print(degrees(coefs[1]), degrees(coefs[-1]))
+        print(coefs[1], coefs[-1])
 
         matrix[0][0], matrix[1][1] = 1, 1
         matrix[-2][-4], matrix[-1][-3] = 1, 1
@@ -247,7 +348,7 @@ def P_coef_count(M, d, X, Y, X_n, Y_n):
             k_1 = (Y_n[(i+2)%M]-Y_n[(i+1)%M])/(X_n[(i+2)%M]-X_n[(i+1)%M])
             len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
             len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
-            P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
+            P_align_coef.append(psi_0 * len_0 if len_0 > len_1 else psi_1 * len_1)
     else:
         P_align_coef = None
     return P_align_coef
@@ -340,40 +441,15 @@ def new_position_count(M, S, X, Y, solution, c_l_norm, c_n_norm, c_n_norm_j, d_l
     M_j_coreg = []
     D_j = []
     D_j_coreg = []
-    X_disp = []
-    Y_disp = []
-    X__disp = []
-    Y__disp = []
-    znam = []
 
     for i in range(M):
         M_j.append([sum(S[:i]), solution[8*i+2]])
-        X_ = 1 + solution[8*i+1]*sin(solution[8*i+1]) + solution[8*i]*cos(solution[8*i+1])*solution[8*i+2]
+        X_ = 1 - solution[8*i+1]*sin(solution[8*i+1]) - solution[8*i]*cos(solution[8*i+1])*solution[8*i+2]
         Y_ = solution[8*i+1]*cos(solution[8*i+1]) - solution[8*i]*sin(solution[8*i+1])*solution[8*i+2]
-        X__ = (solution[8*i+2]*sin(solution[8*i+1]) + 2*solution[8*i+1]*cos(solution[8*i+1])*solution[8*i+2]
-               - solution[8*i]*sin(solution[8*i+1])*(solution[8*i+2]**2) + solution[8*i]*cos(solution[8*i+1])*solution[8*i+3])
+        X__ = (-solution[8*i+2]*sin(solution[8*i+1]) - 2*solution[8*i+1]*cos(solution[8*i+1])*solution[8*i+2]
+               + solution[8*i]*sin(solution[8*i+1])*(solution[8*i+2]**2) - solution[8*i]*cos(solution[8*i+1])*solution[8*i+3])
         Y__ = (solution[8*i+2]*cos(solution[8*i+1]) - 2*solution[8*i+1]*sin(solution[8*i+1])*solution[8*i+2]
                - solution[8*i]*cos(solution[8*i+1])*(solution[8*i+2]**2) - solution[8*i]*sin(solution[8*i+1])*solution[8*i+3])
-
-        X_disp.append(X_)
-        Y_disp.append(Y_)
-        X__disp.append(X__)
-        Y__disp.append(Y__)
-        znam.append(((sqrt(X_**2 + Y_**2))**3))
-
-        # print("X start",
-        #     -solution[8*i+2]*sin(solution[8*i+1]),
-        #     - 2*solution[8*i+1]*cos(solution[8*i+1])*solution[8*i+2]
-        #     + solution[8*i]*sin(solution[8*i+1])*(solution[8*i+2]**2)
-        #     - solution[8*i]*cos(solution[8*i+1])*solution[8*i+3]
-        # )
-        # print("Y start",
-        #     solution[8*i+2]*cos(solution[8*i+1])
-        #     - 2*solution[8*i+1]*sin(solution[8*i+1])*solution[8*i+2]
-        #     - solution[8*i]*cos(solution[8*i+1])*(solution[8*i+2]**2)
-        #     - solution[8*i]*sin(solution[8*i+1])*solution[8*i+3]
-        # )
-
         # print((-(X__*Y_ - Y__*X_))/((sqrt(X_**2 + Y_**2))**3), solution[8*i+2], cos(solution[8*i+1]), 2*solution[8*i+1], sin(solution[8*i+1]), solution[8*i+2])
         M_j_coreg.append([sum(S[:i]), (-(X__*Y_ - Y__*X_))/((sqrt(X_**2 + Y_**2))**3), S[i]*list_of_patrs[0]])
         D_j.append([X[i] + solution[8*i] * c_l_norm[i], Y[i] + solution[8*i] * d_l_norm[i]])
@@ -381,104 +457,26 @@ def new_position_count(M, S, X, Y, solution, c_l_norm, c_n_norm, c_n_norm_j, d_l
         for k in range(len(list_of_patrs)):
             index = len(list_of_patrs)*i+k
             M_j.append([M_j[i*len(list_of_patrs)+k+i][0]+S[i]*list_of_patrs[0], sol_half[index][2]])
-            X_ = 1 + sol_half[index][1]*sin(sol_half[index][1]) + sol_half[index][0]*cos(sol_half[index][1])*sol_half[index][2]
+            X_ = 1 - sol_half[index][1]*sin(sol_half[index][1]) - sol_half[index][0]*cos(sol_half[index][1])*sol_half[index][2]
             Y_ = sol_half[index][1]*cos(sol_half[index][1]) - sol_half[index][0]*sin(sol_half[index][1])*sol_half[index][2]
-            X__ = (sol_half[index][2]*sin(sol_half[index][1]) + 2*sol_half[index][1]*cos(sol_half[index][1])*sol_half[index][2]
-                   - sol_half[index][0]*sin(sol_half[index][1])*(sol_half[index][2]**2) + sol_half[index][0]*cos(sol_half[index][1])*sol_half[index][3])
+            X__ = (-sol_half[index][2]*sin(sol_half[index][1]) - 2*sol_half[index][1]*cos(sol_half[index][1])*sol_half[index][2]
+                   + sol_half[index][0]*sin(sol_half[index][1])*(sol_half[index][2]**2) - sol_half[index][0]*cos(sol_half[index][1])*sol_half[index][3])
             Y__ = (sol_half[index][2]*cos(sol_half[index][1]) - 2*sol_half[index][1]*sin(sol_half[index][1])*sol_half[index][2]
                    - sol_half[index][0]*cos(sol_half[index][1])*(sol_half[index][2]**2) - sol_half[index][0]*sin(sol_half[index][1])*sol_half[index][3])
-
-            X_disp.append(X_)
-            Y_disp.append(Y_)
-            X__disp.append(X__)
-            Y__disp.append(Y__)
-            znam.append(((sqrt(X_**2 + Y_**2))**3))
-
-            # print("X midl",
-            #     -sol_half[index][2]*sin(sol_half[index][1])
-            #     - 2*sol_half[index][1]*cos(sol_half[index][1])*sol_half[index][2]
-            #     + sol_half[index][0]*sin(sol_half[index][1])*(sol_half[index][2]**2)
-            #     - sol_half[index][0]*cos(sol_half[index][1])*sol_half[index][3])
-            # print("Y midl",
-            #       sol_half[index][2]*cos(sol_half[index][1])
-            #       - 2*sol_half[index][1]*sin(sol_half[index][1])*sol_half[index][2]
-            #       - sol_half[index][0]*cos(sol_half[index][1])*(sol_half[index][2]**2)
-            #       - sol_half[index][0]*sin(sol_half[index][1])*sol_half[index][3]
-            #       )
-
             M_j_coreg.append([M_j[i*len(list_of_patrs)+k+i][0]+S[i]*list_of_patrs[0], (-(X__*Y_ - Y__*X_))/((sqrt(X_**2 + Y_**2))**3), S[i]*list_of_patrs[0]])
             D_j.append([B_j[index][0] + sol_half[index][0] * c_l_norm[i], B_j[index][1] + sol_half[index][0] * d_l_norm[i]])
             D_j_coreg.append([B_j[index][0] + sol_half[index][0] * c_n_norm_j[index], B_j[index][1] + sol_half[index][0] * d_n_norm_j[index]])
     M_j.append([sum(S), solution[-2]])
-    X_ = 1 + solution[-3]*sin(solution[-3]) + solution[-4]*cos(solution[-3])*solution[-2]
+    X_ = 1 - solution[-3]*sin(solution[-3]) - solution[-4]*cos(solution[-3])*solution[-2]
     Y_ = solution[-3]*cos(solution[-3]) - solution[-4]*sin(solution[-3])*solution[-2]
-    X__ = (solution[-2]*sin(solution[-3]) + 2*solution[-3]*cos(solution[-3])*solution[-2]
-           - solution[-4]*sin(solution[-3])*(solution[-2]**2) + solution[-4]*cos(solution[-3])*solution[-1])
+    X__ = (-solution[-2]*sin(solution[-3]) - 2*solution[-3]*cos(solution[-3])*solution[-2]
+           + solution[-4]*sin(solution[-3])*(solution[-2]**2) - solution[-4]*cos(solution[-3])*solution[-1])
     Y__ = (solution[-2]*cos(solution[-3]) - 2*solution[-3]*sin(solution[-3])*solution[-2]
            - solution[-4]*cos(solution[-3])*(solution[-2]**2) - solution[-4]*sin(solution[-3])*solution[-1])
-
-    X_disp.append(X_)
-    Y_disp.append(Y_)
-    X__disp.append(X__)
-    Y__disp.append(Y__)
-    znam.append(((sqrt(X_**2 + Y_**2))**3))
-
-    # print("X end",
-    #       -solution[-2]*sin(solution[-3])
-    #       - 2*solution[-3]*cos(solution[-3])*solution[-2]
-    #       + solution[-4]*sin(solution[-3])*(solution[-2]**2)
-    #       - solution[-4]*cos(solution[-3])*solution[-1]
-    #       )
-    # print("Y end",
-    #       solution[-2]*cos(solution[-3])
-    #       - 2*solution[-3]*sin(solution[-3])*solution[-2]
-    #       - solution[-4]*cos(solution[-3])*(solution[-2]**2)
-    #       - solution[-4]*sin(solution[-3])*solution[-1],
-    #       "\n\n")
-
-
     M_j_coreg.append([sum(S), (-(X__*Y_ - Y__*X_))/((sqrt(X_**2 + Y_**2))**3), S[-1]*list_of_patrs[0]])
     D_j.append([X[-1] + solution[-4] * c_l_norm[-1], Y[-1] + solution[-4] * d_l_norm[-1]])
     D_j_coreg.append([X[-1] + solution[-4] * c_n_norm[-1], Y[-1] + solution[-4] * d_n_norm[-1]])
 
-    # plt.figure(figsize=(10, 10))
-    #
-    # plt.plot(X_disp, "oy", markersize=8, linewidth=2, label=f"X_")
-    #
-    # plt.legend()
-    # plt.grid()
-    # plt.show()
-    #
-    # plt.figure(figsize=(10, 10))
-    #
-    # plt.plot(Y_disp, "om", markersize=8, linewidth=2, label=f"Y_")
-    #
-    # plt.legend()
-    # plt.grid()
-    # plt.show()
-    #
-    # plt.figure(figsize=(10, 10))
-    #
-    # plt.plot(X__disp, "og", markersize=8, linewidth=2, label=f"X__")
-    #
-    # plt.legend()
-    # plt.grid()
-    # plt.show()
-    #
-    # plt.figure(figsize=(10, 10))
-    #
-    # plt.plot(Y__disp, "ob", markersize=8, linewidth=2, label=f"Y__")
-    #
-    # plt.legend()
-    # plt.grid()
-    # plt.show()
-    #
-    # plt.figure(figsize=(10, 10))
-    #
-    # plt.plot(znam, "oy", markersize=8, linewidth=2, label=f"X_")
-    #
-    # plt.legend()
-    # plt.grid()
-    # plt.show()
+
 
     return map(np.transpose, map(np.array, [M_j, M_j_coreg, D_j, D_j_coreg]))

@@ -3,7 +3,7 @@ from io import BytesIO
 import base64
 from math import radians
 
-from flask import render_template
+from flask import render_template, send_file
 import numpy as np
 
 from constants import display_aligns_table
@@ -12,6 +12,7 @@ from utils import (
     vector_cords,
     vector_cords_not_loop,
     align_value_count,
+    klotoid_align_value_count,
     len_value_count,
     C_coef_value_count,
     P_coef_count,
@@ -41,6 +42,10 @@ class Calculate(_Controller):
         save_data = bool(int(self.request_data['save_data']))
         file_name = self.request_data.get('file_name', "").split(".")[0]
 
+        plot_type = "data"
+        # plot_type = "moments"
+        # plot_type = "aligns"
+
         if curve_type == "not_loop":
             aligns = [
                 int(self.request_data.get('align_1')),
@@ -69,9 +74,25 @@ class Calculate(_Controller):
         y = y_base = data[:, 1]
         point_type = data[:, 2]
 
+        if x[1] > y[0]:
+            clock = "clockwise"
+            scale_coef = 1
+        else:
+            clock = "counterclockwise"
+            scale_coef = -1
+
         response_images = []
 
+        pi_coef = 0
+        scale_clotoid_data = False
+        rotate_switch = False
+
         for iteration in range(iterations):
+
+            if rotate_switch:
+                if (iteration + 1) % 10 == 0:
+                    aligns[2] -= 25
+
             if curve_type == "loop":
                 d = vector_cords(file_dataset_len, x, y)
             else:
@@ -79,8 +100,9 @@ class Calculate(_Controller):
             psis_sin, psis = align_value_count(file_dataset_len, d, curve_type)
 
             if curve_type == "not_loop":
-                d_abs = np.array([d[0], [1, 0], d[-1], [1, 0]])
-                psis_sin_abs, psis_abs = align_value_count(4, d_abs, curve_type)
+                d_abs = np.array([d[0], d[-1]])
+                psis_abs, _ = klotoid_align_value_count(d_abs, pi_coef, klotoid=False, clock=clock)
+                print(iteration, psis_abs, aligns[0::2])
             else:
                 psis_sin_abs, psis_abs = None, None
 
@@ -94,7 +116,7 @@ class Calculate(_Controller):
             if iteration == 0:
                 C_ris = C_start
                 C = C_coef_value_count(file_dataset_len, S_input, C_start)
-                matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, extra_psis=psis_abs, aligns=aligns)
+                matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, extra_psis=psis_abs, aligns=aligns, iter=iteration)
             elif iteration > 0 and iteration < iterations:
                 C_ris *= C_step
                 C *= C_step
@@ -102,7 +124,7 @@ class Calculate(_Controller):
                     P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y)
                 else:
                     P_align_coef = None
-                matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, P_align_coef=P_align_coef, extra_psis=psis_abs, aligns=aligns)
+                matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, P_align_coef=P_align_coef, extra_psis=psis_abs, aligns=aligns, iter=iteration)
             else:
                 C_ris /= C_step
                 C /= C_step
@@ -126,6 +148,11 @@ class Calculate(_Controller):
             B_j, c_n_norm_B_j, d_n_norm_B_j = midle_point_count(file_dataset_len, list_of_patrs, x, y, S_input, a_norm, b_norm, sol_half)
             M_j, M_j_coreg, D_j, D_j_coreg = new_position_count(file_dataset_len, S_input, x, y, solution, c_l_norm, c_n_norm, c_n_norm_B_j, d_l_norm, d_n_norm, d_n_norm_B_j, sol_half, list_of_patrs, B_j, curve_type)
 
+
+            if scale_clotoid_data:
+                D_j_coreg = D_j_coreg * scale_coef * M_j_coreg[1][0] * 20
+
+
             x = D_j_coreg[0, ::parts]
             y = D_j_coreg[1, ::parts]
 
@@ -133,14 +160,14 @@ class Calculate(_Controller):
 
             if iteration == (iterations - 1):
                 if save_data:
-                    with open(f"{file_name}_data.txt", "w") as f:
+                    with open(f"output_data/{file_name}_data.txt", "w") as f:
                         for i in np.transpose(D_j_coreg):
                             f.write(f"{i[0]} {i[1]}\n")
 
                     # моменты
                     M_x = M_j_coreg[0]
                     M_y = M_j_coreg[1]
-                    with open(f"{file_name}_moments.txt", "w") as f:
+                    with open(f"output_data/{file_name}_moments.txt", "w") as f:
                         for i in range(len(M_y)):
                             f.write(f"{M_x[i]} {M_y[i]}\n")
 
@@ -189,11 +216,16 @@ class Calculate(_Controller):
                 annotate_step.append(0)
                 alpha.append(1)
 
-            plot = display_plot(points_data, labels=labels, color_line=colours,
-                                title="", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
-
-            # plot = display_plot([[M_j_coreg[0], M_j_coreg[1]]], labels = ['Моменти'], color_line = ['-m'],
-            #                     title="", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
+            if plot_type == "data":
+                plot = display_plot(points_data, labels=labels, color_line=colours,
+                                    title=f"iteration {iteration + 1}", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
+            elif plot_type == "aligns":
+                plot = display_plot([[list(range(len(solution[2::8]))), solution[2::8]]], labels=['matrix'], color_line=['-m'],
+                                    title=f"iteration {iteration + 1}", annotate_step=annotate_step, points_count=len(x),
+                                    alpha=alpha)
+            else:
+                plot = display_plot([[M_j_coreg[0], M_j_coreg[1]]], labels = ['Моменти'], color_line = ['-m'],
+                                    title=f"iteration {iteration + 1}", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
 
             flike = BytesIO()
             plot.savefig(flike, format='png')
@@ -204,7 +236,6 @@ class Calculate(_Controller):
 
             response_images.append(graph)
 
-
             # if curve_type != "loop" and iteration == 0:
             #     x = D_j_coreg[0, ::parts//6]
             #     y = D_j_coreg[1, ::parts//6]
@@ -214,23 +245,69 @@ class Calculate(_Controller):
             #         point_type = np.insert(point_type, 1, 2)
             #     file_dataset_len = (len(x) - 1)
 
-            if curve_type != "loop" and iteration <= 4 and (len(x) - len(x_base)) < 30:
-                for im in range(2, int(parts**0.5)+1):
-                    if parts % im == 0:
-                        im_points_count = im
-                        break
+
+            # # points add work good
+            # if curve_type != "loop" and iteration <= 4 and (len(x) - len(x_base)) < 300:
+            #     for im in range(3, int(parts**0.5)+1):
+            #         if parts % im == 0:
+            #             im_points_count = im
+            #             break
+            #     else:
+            #         im_points_count = parts
+            #
+            #     x = D_j_coreg[0, ::parts//im_points_count]
+            #     y = D_j_coreg[1, ::parts//im_points_count]
+            #
+            #     for i in range(int((len(x) - len(point_type)) / (im_points_count - 1))):
+            #         for j in range(im_points_count - 1):
+            #             point_type = np.insert(point_type, im_points_count*i+1, 2)
+            #
+            #     file_dataset_len = (len(x) - 1)
+
+            if curve_type != "loop":
+                if len(psis) > 0:
+                    for im in range(3, int(parts ** 0.5) + 1):
+                        if parts % im == 0:
+                            im_points_count = im
+                            break
+                    else:
+                        im_points_count = parts
+
+                    x = D_j_coreg[0, ::parts]
+                    y = D_j_coreg[1, ::parts]
+
+                    for ind in range(len(psis), 0, -1):
+                        if abs(psis[ind - 1]) > 0.5:
+                            if D_j_coreg[0][parts * ind + parts // 2] not in x:
+                                x = np.insert(x, ind + 1, D_j_coreg[0][parts * ind + parts // 2])
+                                y = np.insert(y, ind + 1, D_j_coreg[1][parts * ind + parts // 2])
+
+                                point_type = np.insert(point_type, ind + 1, 2)
+
+                            x = np.insert(x, ind, D_j_coreg[0][parts * (ind - 1) + parts // 2])
+                            y = np.insert(y, ind, D_j_coreg[1][parts * (ind - 1) + parts // 2])
+
+                            point_type = np.insert(point_type, ind, 2)
                 else:
-                    im_points_count = parts
+                    for im in range(3, int(parts ** 0.1) + 1):
+                        if parts % im == 0:
+                            im_points_count = im
+                            break
+                    else:
+                        im_points_count = parts
 
-                x = D_j_coreg[0, ::parts//im_points_count]
-                y = D_j_coreg[1, ::parts//im_points_count]
+                    x = D_j_coreg[0, ::parts // im_points_count]
+                    y = D_j_coreg[1, ::parts // im_points_count]
 
-                for i in range(len(x) - len(point_type)):
-                    point_type = np.insert(point_type, 1, 2)
+                    for i in range(int((len(x) - len(point_type)) / (im_points_count - 1))):
+                        for j in range(im_points_count - 1):
+                            point_type = np.insert(point_type, im_points_count*i+1, 2)
 
                 file_dataset_len = (len(x) - 1)
+                print(len(solution[1::8]/8))
 
-        return {"plots": response_images}
+
+        return {"plots": response_images, "quality": round(qulity, 5), "length": round(M_j_coreg[0][-1], 5)}
 
     def _get(self):
         return render_template("main_page.html")

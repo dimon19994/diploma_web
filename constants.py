@@ -57,5 +57,5 @@ axis_elips = 0
 POINTS_TYPE = {
     0: "movable",
     1: "fixed",
-    2: "Imagine"
+    2: "imagine"
 }

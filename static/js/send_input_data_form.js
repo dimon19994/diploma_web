@@ -155,6 +155,8 @@ $(document).on("click", "#calculate", function (e) {
             new Splide('#image-carousel', {
                 wheel: true,
             }).mount();
+            $("#quality").html("Якість = " + response["quality"]);
+            $("#length").html("Довжина = " + response["length"]);
         },
         error: function (jqXHR, textStatus, errorThrown) {
             // TODO: исправить ответ ошибки
