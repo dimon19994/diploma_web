@@ -84,14 +84,14 @@ class Calculate(_Controller):
         response_images = []
 
         pi_coef = 0
-        scale_clotoid_data = False
-        rotate_switch = False
+        scale_clotoid_data = True
+        rotate_switch = True
 
         for iteration in range(iterations):
 
             if rotate_switch:
                 if (iteration + 1) % 10 == 0:
-                    aligns[2] -= 25
+                    aligns[2] -= 10
 
             if curve_type == "loop":
                 d = vector_cords(file_dataset_len, x, y)
@@ -101,7 +101,7 @@ class Calculate(_Controller):
 
             if curve_type == "not_loop":
                 d_abs = np.array([d[0], d[-1]])
-                psis_abs, _ = klotoid_align_value_count(d_abs, pi_coef, klotoid=False, clock=clock)
+                psis_abs, _ = klotoid_align_value_count(d_abs, pi_coef, klotoid=True, clock=clock)
                 print(iteration, psis_abs, aligns[0::2])
             else:
                 psis_sin_abs, psis_abs = None, None
@@ -150,7 +150,7 @@ class Calculate(_Controller):
 
 
             if scale_clotoid_data:
-                D_j_coreg = D_j_coreg * scale_coef * M_j_coreg[1][0] * 20
+                D_j_coreg = D_j_coreg * scale_coef * M_j_coreg[1][0]
 
 
             x = D_j_coreg[0, ::parts]
@@ -218,7 +218,7 @@ class Calculate(_Controller):
 
             if plot_type == "data":
                 plot = display_plot(points_data, labels=labels, color_line=colours,
-                                    title=f"iteration {iteration + 1}", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
+                                    title=f"iteration {iteration + 1} -> start {aligns[0]} end {aligns[2]}", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
             elif plot_type == "aligns":
                 plot = display_plot([[list(range(len(solution[2::8]))), solution[2::8]]], labels=['matrix'], color_line=['-m'],
                                     title=f"iteration {iteration + 1}", annotate_step=annotate_step, points_count=len(x),
@@ -304,7 +304,6 @@ class Calculate(_Controller):
                             point_type = np.insert(point_type, im_points_count*i+1, 2)
 
                 file_dataset_len = (len(x) - 1)
-                print(len(solution[1::8]/8))
 
 
         return {"plots": response_images, "quality": round(qulity, 5), "length": round(M_j_coreg[0][-1], 5)}

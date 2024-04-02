@@ -87,6 +87,7 @@ def klotoid_align_value_count(d, pi_coef = 0, klotoid=False, index=1, clock="clo
 
     for i in range(2):
         psi = to_angle(d[i][0], d[i][1], 1, 0)
+        #TODO  FIX
         if clock == "clockwise":
             cof_1 = 1
             cof_2 = 0
@@ -130,7 +131,7 @@ def klotoid_align_value_count(d, pi_coef = 0, klotoid=False, index=1, clock="clo
         elif psi[0] < 0 and psi[1] > 0:
             print(4, end=" ")
             if klotoid and i == index:
-                psis = np.append(psis, pi_coef * pi - np.arcsin(psi[0]))
+                psis = np.append(psis, pi/2 + pi/2 + np.arcsin(psi[0]))
             else:
                 psis = np.append(psis, np.arcsin(psi[0]))
         elif round(psi[0], 5) == 0 and round(psi[1], 5) == 1:
@@ -207,10 +208,10 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
         chsh = False
         additional_align = 0
 
-        # if iter > 4:
-        #     chsh = False
-        #     additional_align = 13 * ((iter) // 4)
-        #     # additional_align = 10 * (iter - 4)
+        if iter > 4:
+            chsh = False
+            additional_align = 13 * ((iter) // 4)
+            # additional_align = 10 * (iter - 4)
 
         if iter > 5:
             k = k * (1.001 ** (iter - 5))
@@ -267,21 +268,21 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
                 coefs[i*8+7] = -C*P_align_coef[i]
 
         # --------------klotoid--------------
-        # coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
-        # coefs[-2] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
-        #
-        # matrix[0][0], matrix[1][1] = 1, 1
-        # matrix[-2][-3], matrix[-1][-2] = 1, 1
-        # --------------klotoid--------------
-
-        coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
-        # coefs[1] = extra_psis[0]
-        coefs[-1] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
-        # print(degrees(coefs[1]), degrees(coefs[-1]))
-        print(coefs[1], coefs[-1])
+        coefs[1] = (radians(aligns[0]))# + aligns[1] * extra_psis[0])
+        coefs[-2] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
 
         matrix[0][0], matrix[1][1] = 1, 1
-        matrix[-2][-4], matrix[-1][-3] = 1, 1
+        matrix[-2][-3], matrix[-1][-2] = 1, 1
+        # --------------klotoid--------------
+
+        # coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
+        # # coefs[1] = extra_psis[0]
+        # coefs[-1] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
+        # # print(degrees(coefs[1]), degrees(coefs[-1]))
+        # matrix[0][0], matrix[1][1] = 1, 1
+        # matrix[-2][-4], matrix[-1][-3] = 1, 1
+
+        print(coefs[1], coefs[-1])
     else:
         for i in range(M):
             # Рівняння зв'язку
