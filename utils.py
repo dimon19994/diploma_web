@@ -112,7 +112,7 @@ def klotoid_align_value_count(d, pi_coef = 0, klotoid=False, index=1, clock="clo
         elif psi[0] > 0 and psi[1] < 0:
             print(2, end=" ")
             if klotoid and i == index:
-                psis = np.append(psis, pi_coef * pi - np.arcsin(psi[0]))
+                psis = np.append(psis, pi_coef * pi + pi - np.arcsin(psi[0]))
             else:
                 psis = np.append(psis, pi - np.arcsin(psi[0]))
 
@@ -121,10 +121,10 @@ def klotoid_align_value_count(d, pi_coef = 0, klotoid=False, index=1, clock="clo
             if klotoid and i == index:
                 if pi_coef % 2 == cof_2:
                     if np.arcsin(psi[0]) < 0:
-                        pi_coef -= 1
-                    else:
                         pi_coef += 1
-                psis = np.append(psis, pi_coef * pi - minis_cof * np.arcsin(psi[0]))
+                    else:
+                        pi_coef -= 1
+                psis = np.append(psis, pi_coef * pi + minis_cof * np.arcsin(psi[0]))
             else:
                 psis = np.append(psis, -pi - np.arcsin(psi[0]))
 
@@ -268,7 +268,7 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
                 coefs[i*8+7] = -C*P_align_coef[i]
 
         # --------------klotoid--------------
-        coefs[1] = (radians(aligns[0]))# + aligns[1] * extra_psis[0])
+        coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
         coefs[-2] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
 
         matrix[0][0], matrix[1][1] = 1, 1

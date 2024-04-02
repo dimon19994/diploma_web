@@ -84,7 +84,7 @@ class Calculate(_Controller):
         response_images = []
 
         pi_coef = 0
-        scale_clotoid_data = True
+        scale_clotoid_data = False
         rotate_switch = True
 
         for iteration in range(iterations):
