@@ -76,7 +76,7 @@ class Calculate(_Controller):
 
         if x[1] > y[0]:
             clock = "clockwise"
-            scale_coef = 1
+            scale_coef = -1
         else:
             clock = "counterclockwise"
             scale_coef = -1
@@ -90,8 +90,14 @@ class Calculate(_Controller):
         for iteration in range(iterations):
 
             if rotate_switch:
-                if (iteration + 1) % 10 == 0:
-                    aligns[2] -= 10
+                if abs(aligns[2]) > 260:
+                    rotate_step = 25
+                    rotate_align = 2
+                else:
+                    rotate_step = 10
+                    rotate_align = 10
+                if (iteration) % rotate_step == 0:
+                    aligns[2] -= rotate_align
 
             if curve_type == "loop":
                 d = vector_cords(file_dataset_len, x, y)
@@ -151,7 +157,7 @@ class Calculate(_Controller):
 
             if scale_clotoid_data:
                 if abs(M_j_coreg[1][0]) != 0:
-                    D_j_coreg = D_j_coreg * scale_coef * -M_j_coreg[1][0]
+                    D_j_coreg = D_j_coreg * scale_coef * M_j_coreg[1][0] * 15
 
 
             x = D_j_coreg[0, ::parts]
@@ -159,16 +165,17 @@ class Calculate(_Controller):
 
 
 
-            if iteration == (iterations - 1):
+            # if iteration == (iterations - 1):
+            if iteration % 10 == 9 or iteration == (iterations - 1):
                 if save_data:
-                    with open(f"output_data/{file_name}_data.txt", "w") as f:
-                        for i in np.transpose(D_j_coreg):
+                    with open(f"output_data/{file_name}_data_{aligns[2]}.txt", "w") as f:
+                        for i in np.transpose(D_j_coreg)[::parts]:
                             f.write(f"{i[0]} {i[1]}\n")
 
                     # моменты
                     M_x = M_j_coreg[0]
                     M_y = M_j_coreg[1]
-                    with open(f"output_data/{file_name}_moments.txt", "w") as f:
+                    with open(f"output_data/{file_name}_moments_{aligns[2]}.txt", "w") as f:
                         for i in range(len(M_y)):
                             f.write(f"{M_x[i]} {M_y[i]}\n")
 
@@ -278,7 +285,7 @@ class Calculate(_Controller):
                     y = D_j_coreg[1, ::parts]
 
                     for ind in range(len(psis), 0, -1):
-                        if abs(psis[ind - 1]) > 0.5:
+                        if abs(psis[ind - 1]) > 0.3:
                             if D_j_coreg[0][parts * ind + parts // 2] not in x:
                                 x = np.insert(x, ind + 1, D_j_coreg[0][parts * ind + parts // 2])
                                 y = np.insert(y, ind + 1, D_j_coreg[1][parts * ind + parts // 2])

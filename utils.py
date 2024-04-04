@@ -145,7 +145,7 @@ def klotoid_align_value_count(d, pi_coef = 0, klotoid=False, index=1, clock="clo
         else:
             print(psi, "\nERROR!!!")
 
-    return psis, pi_coef
+    return list(map(round, psis, [6, 6])), pi_coef
 
 def align_value_count(M, d, curve_type):
     psis_sin = np.array([])
