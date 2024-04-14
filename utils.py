@@ -282,7 +282,7 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
         # matrix[0][0], matrix[1][1] = 1, 1
         # matrix[-2][-4], matrix[-1][-3] = 1, 1
 
-        print(coefs[1], coefs[-1])
+        print(coefs[1], coefs[-2])
     else:
         for i in range(M):
             # Рівняння зв'язку

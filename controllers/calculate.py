@@ -42,9 +42,10 @@ class Calculate(_Controller):
         save_data = bool(int(self.request_data['save_data']))
         file_name = self.request_data.get('file_name', "").split(".")[0]
 
-        plot_type = "data"
+        # plot_type = "data"
         # plot_type = "moments"
         # plot_type = "aligns"
+        plot_type = "data_without_input"
 
         if curve_type == "not_loop":
             aligns = [
@@ -84,19 +85,22 @@ class Calculate(_Controller):
         response_images = []
 
         pi_coef = 0
-        scale_clotoid_data = True
+        scale_klotoid_data = False
         rotate_switch = True
 
         for iteration in range(iterations):
 
             if rotate_switch:
-                if abs(aligns[2]) > 260:
+                if abs(aligns[2]) > 280:
+                    rotate_step = 25
+                    rotate_align = 0
+                elif abs(aligns[2]) > 260:
                     rotate_step = 25
                     rotate_align = 2
                 else:
-                    rotate_step = 10
+                    rotate_step = 3
                     rotate_align = 10
-                if (iteration) % rotate_step == 0:
+                if iteration and (iteration) % rotate_step == 0:
                     aligns[2] -= rotate_align
 
             if curve_type == "loop":
@@ -107,6 +111,7 @@ class Calculate(_Controller):
 
             if curve_type == "not_loop":
                 d_abs = np.array([d[0], d[-1]])
+                print(f"d abs --->>> {d_abs[1]}")
                 psis_abs, _ = klotoid_align_value_count(d_abs, pi_coef, klotoid=True, clock=clock)
                 print(iteration, psis_abs, aligns[0::2])
             else:
@@ -155,9 +160,9 @@ class Calculate(_Controller):
             M_j, M_j_coreg, D_j, D_j_coreg = new_position_count(file_dataset_len, S_input, x, y, solution, c_l_norm, c_n_norm, c_n_norm_B_j, d_l_norm, d_n_norm, d_n_norm_B_j, sol_half, list_of_patrs, B_j, curve_type)
 
 
-            if scale_clotoid_data:
+            if scale_klotoid_data:
                 if abs(M_j_coreg[1][0]) != 0:
-                    D_j_coreg = D_j_coreg * scale_coef * M_j_coreg[1][0] * 15
+                    D_j_coreg = D_j_coreg * scale_coef * M_j_coreg[1][0]
 
 
             x = D_j_coreg[0, ::parts]
@@ -166,7 +171,7 @@ class Calculate(_Controller):
 
 
             # if iteration == (iterations - 1):
-            if iteration % 10 == 9 or iteration == (iterations - 1):
+            if iteration % 10 == rotate_step-1 or iteration == (iterations - 1):
                 if save_data:
                     with open(f"output_data/{file_name}_data_{aligns[2]}.txt", "w") as f:
                         for i in np.transpose(D_j_coreg)[::parts]:
@@ -186,11 +191,18 @@ class Calculate(_Controller):
                 print("Якість", qulity)
                 print("Довжина", M_j_coreg[0][-1])
 
-            points_data = [[x_base, y_base], [D_j_coreg[0], D_j_coreg[1]], [x, y]]
-            colours = ['ob', '-y', '']
-            labels = ["Input points", "Сontinuous contour", ""]
-            annotate_step = [0, 0, (file_dataset_len//10+1)]
-            alpha = [1, 1, 0]
+            # points_data = [[x_base, y_base], [D_j_coreg[0], D_j_coreg[1]], [x, y]]
+            # colours = ['ob', '-y', '']
+            # labels = ["Input points", "Сontinuous contour", ""]
+            # annotate_step = [0, 0, (file_dataset_len//10+1)]
+            # alpha = [1, 1, 0]
+
+            points_data = [[D_j_coreg[0], D_j_coreg[1]], [x, y]]
+            colours = ['-y', '']
+            labels = ["Сontinuous contour", ""]
+            annotate_step = [0, (file_dataset_len // 10 + 1)]
+            alpha = [1, 0]
+
             spline_points = [[], []]
             imagine_points = [[], []]
             fixed_points = [[], []]
@@ -227,6 +239,10 @@ class Calculate(_Controller):
             if plot_type == "data":
                 plot = display_plot(points_data, labels=labels, color_line=colours,
                                     title=f"iteration {iteration + 1} -> start {aligns[0]} end {aligns[2]}", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
+            elif plot_type == "data_without_input":
+                plot = display_plot(points_data, labels=labels, color_line=colours,
+                                    title=f"iteration {iteration + 1} -> start {aligns[0]} end {aligns[2]}",
+                                    annotate_step=annotate_step, points_count=len(x), alpha=alpha)
             elif plot_type == "aligns":
                 plot = display_plot([[list(range(len(solution[2::8]))), solution[2::8]]], labels=['matrix'], color_line=['-m'],
                                     title=f"iteration {iteration + 1}", annotate_step=annotate_step, points_count=len(x),
@@ -285,7 +301,7 @@ class Calculate(_Controller):
                     y = D_j_coreg[1, ::parts]
 
                     for ind in range(len(psis), 0, -1):
-                        if abs(psis[ind - 1]) > 0.3:
+                        if abs(psis[ind - 1]) > 0.3: # >10 ihflecsd
                             if D_j_coreg[0][parts * ind + parts // 2] not in x:
                                 x = np.insert(x, ind + 1, D_j_coreg[0][parts * ind + parts // 2])
                                 y = np.insert(y, ind + 1, D_j_coreg[1][parts * ind + parts // 2])
@@ -296,6 +312,9 @@ class Calculate(_Controller):
                             y = np.insert(y, ind, D_j_coreg[1][parts * (ind - 1) + parts // 2])
 
                             point_type = np.insert(point_type, ind, 2)
+                        elif abs(psis[ind - 1]) > 0.3: # < 2
+                            pass
+
                 else:
                     for im in range(3, int(parts ** 0.1) + 1):
                         if parts % im == 0:
