@@ -71,6 +71,8 @@ class Calculate(_Controller):
         else:
             data = np.array(data)
 
+        prew_iter_points = None
+
         x = x_base = data[:, 0]
         y = y_base = data[:, 1]
         point_type = data[:, 2]
@@ -87,18 +89,19 @@ class Calculate(_Controller):
         pi_coef = 0
         scale_klotoid_data = False
         rotate_switch = True
+        stabil = False
 
         for iteration in range(iterations):
 
             if rotate_switch:
-                if abs(aligns[2]) > 280:
-                    rotate_step = 25
-                    rotate_align = 0
+                if abs(aligns[2]) >= 285:
+                    rotate_step = 45
+                    rotate_align = 1
                 elif abs(aligns[2]) > 260:
-                    rotate_step = 25
-                    rotate_align = 2
+                    rotate_step = 15
+                    rotate_align = 5
                 else:
-                    rotate_step = 3
+                    rotate_step = 5
                     rotate_align = 10
                 if iteration and (iteration) % rotate_step == 0:
                     aligns[2] -= rotate_align
@@ -297,26 +300,71 @@ class Calculate(_Controller):
                     else:
                         im_points_count = parts
 
-                    x = D_j_coreg[0, ::parts]
-                    y = D_j_coreg[1, ::parts]
+                    if stabil and prew_iter_points is not None:
+                        added_points_k = (len(prew_iter_points[0]) - 1) / (len(D_j_coreg[0, ::parts//2]) - 1)
+                        prew_iter_points_with_half_x = np.array([[], []])
+                        prew_iter_points_with_half_y = np.array([[], []])
+                        for ffg in range(len(D_j_coreg[0, ::parts//2])):
+                            prew_iter_points_with_half_x = np.append(prew_iter_points_with_half_x, prew_iter_points[0][round(added_points_k * ffg)])
+                            prew_iter_points_with_half_y = np.append(prew_iter_points_with_half_y, prew_iter_points[1][round(added_points_k * ffg)])
 
-                    for ind in range(len(psis), 0, -1):
-                        if abs(psis[ind - 1]) > 0.3: # >10 ihflecsd
-                            if D_j_coreg[0][parts * ind + parts // 2] not in x:
-                                x = np.insert(x, ind + 1, D_j_coreg[0][parts * ind + parts // 2])
-                                y = np.insert(y, ind + 1, D_j_coreg[1][parts * ind + parts // 2])
+                        prew_iter_points_with_half = np.array([prew_iter_points_with_half_x, prew_iter_points_with_half_y])
+                        current_points_with_half = D_j_coreg[:, ::parts//2]
 
-                                point_type = np.insert(point_type, ind + 1, 2)
+                        x = prew_iter_points_with_half[0, ::2] + (current_points_with_half[0, ::2] - prew_iter_points_with_half[0, ::2]) * 0.1
+                        y = prew_iter_points_with_half[1, ::2] + (current_points_with_half[1, ::2] - prew_iter_points_with_half[1, ::2]) * 0.1
 
-                            x = np.insert(x, ind, D_j_coreg[0][parts * (ind - 1) + parts // 2])
-                            y = np.insert(y, ind, D_j_coreg[1][parts * (ind - 1) + parts // 2])
+                        for ind in range(len(psis), 0, -1):
+                            if abs(psis[ind - 1]) > 0.175:  # >10 ihflecsd
+                                if current_points_with_half[0][ind*2+1] not in x:
+                                    x = np.insert(x, ind + 1, prew_iter_points_with_half[0][ind*2+1]
+                                     + (current_points_with_half[0][ind*2+1] - prew_iter_points_with_half[0][ind*2+1]) * 0.1
+                                     )
+                                    y = np.insert(y, ind + 1, prew_iter_points_with_half[1][ind*2+1]
+                                     + (current_points_with_half[1][ind*2+1] - prew_iter_points_with_half[1][ind*2+1]) * 0.1)
 
-                            point_type = np.insert(point_type, ind, 2)
-                        elif abs(psis[ind - 1]) > 0.3: # < 2
-                            pass
+                                    point_type = np.insert(point_type, ind + 1, 2)
+
+                                x = np.insert(x, ind, prew_iter_points_with_half[0][ind*2-1]
+                                     + (current_points_with_half[0][ind*2-1] - prew_iter_points_with_half[0][ind*2-1]) * 0.1
+                                     )
+                                y = np.insert(y, ind, prew_iter_points_with_half[1][ind*2-1]
+                                     + (current_points_with_half[1][ind*2-1] - prew_iter_points_with_half[1][ind*2-1]) * 0.1)
+
+                                point_type = np.insert(point_type, ind, 2)
+
+                            if abs(psis[ind - 1]) < 0.085 and len(psis) > im_points_count: # < 2
+                                x = np.delete(x, ind)
+                                y = np.delete(y, ind)
+
+                                point_type = np.delete(point_type, ind)
+
+                    else:
+                        x = D_j_coreg[0, ::parts]
+                        y = D_j_coreg[1, ::parts]
+
+                        for ind in range(len(psis), 0, -1):
+                            if abs(psis[ind - 1]) > 0.175: # >10 ihflecsd
+                                if D_j_coreg[0][parts * ind + parts // 2] not in x:
+                                    x = np.insert(x, ind + 1, D_j_coreg[0][parts * ind + parts // 2])
+                                    y = np.insert(y, ind + 1, D_j_coreg[1][parts * ind + parts // 2])
+
+                                    point_type = np.insert(point_type, ind + 1, 2)
+
+                                x = np.insert(x, ind, D_j_coreg[0][parts * (ind - 1) + parts // 2])
+                                y = np.insert(y, ind, D_j_coreg[1][parts * (ind - 1) + parts // 2])
+
+                                point_type = np.insert(point_type, ind, 2)
+
+                                prew_ind = ind
+                            if abs(psis[ind - 1]) < 0.035 and len(psis) > im_points_count: # < 2
+                                x = np.delete(x, ind)
+                                y = np.delete(y, ind)
+
+                                point_type = np.delete(point_type, ind)
 
                 else:
-                    for im in range(3, int(parts ** 0.1) + 1):
+                    for im in range(3, int(parts ** 0.5) + 1):
                         if parts % im == 0:
                             im_points_count = im
                             break
@@ -331,6 +379,8 @@ class Calculate(_Controller):
                             point_type = np.insert(point_type, im_points_count*i+1, 2)
 
                 file_dataset_len = (len(x) - 1)
+
+                prew_iter_points = D_j_coreg
 
 
         return {"plots": response_images, "quality": round(qulity, 5), "length": round(M_j_coreg[0][-1], 5)}
