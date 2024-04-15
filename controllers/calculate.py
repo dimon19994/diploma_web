@@ -87,16 +87,19 @@ class Calculate(_Controller):
         response_images = []
 
         pi_coef = 0
-        scale_klotoid_data = False
+        scale_klotoid_data = True
         rotate_switch = True
-        stabil = False
+        stabil = True
 
         for iteration in range(iterations):
 
             if rotate_switch:
-                if abs(aligns[2]) >= 285:
-                    rotate_step = 45
-                    rotate_align = 1
+                if abs(aligns[2]) >= 310:
+                    rotate_step = 30
+                    rotate_align = 0
+                elif abs(aligns[2]) > 280:
+                    rotate_step = 30
+                    rotate_align = 2
                 elif abs(aligns[2]) > 260:
                     rotate_step = 15
                     rotate_align = 5
@@ -200,68 +203,8 @@ class Calculate(_Controller):
             # annotate_step = [0, 0, (file_dataset_len//10+1)]
             # alpha = [1, 1, 0]
 
-            points_data = [[D_j_coreg[0], D_j_coreg[1]], [x, y]]
-            colours = ['-y', '']
-            labels = ["Сontinuous contour", ""]
-            annotate_step = [0, (file_dataset_len // 10 + 1)]
-            alpha = [1, 0]
 
-            spline_points = [[], []]
-            imagine_points = [[], []]
-            fixed_points = [[], []]
-            for i in range(file_dataset_len+1):
-                if point_type[i] == 0:
-                    spline_points[0].append(x[i])
-                    spline_points[1].append(y[i])
-                elif point_type[i] == 1:
-                    fixed_points[0].append(x[i])
-                    fixed_points[1].append(y[i])
-                elif point_type[i] == 2:
-                    imagine_points[0].append(x[i])
-                    imagine_points[1].append(y[i])
 
-            if spline_points[0]:
-                points_data.append(spline_points)
-                colours.append('oy')
-                labels.append('')
-                annotate_step.append(0)
-                alpha.append(1)
-            if fixed_points[0]:
-                points_data.append(fixed_points)
-                colours.append('or')
-                labels.append('Fixed points')
-                annotate_step.append(0)
-                alpha.append(1)
-            if imagine_points[0]:
-                points_data.append(imagine_points)
-                colours.append('oC7')
-                labels.append('Imaginary points')
-                annotate_step.append(0)
-                alpha.append(1)
-
-            if plot_type == "data":
-                plot = display_plot(points_data, labels=labels, color_line=colours,
-                                    title=f"iteration {iteration + 1} -> start {aligns[0]} end {aligns[2]}", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
-            elif plot_type == "data_without_input":
-                plot = display_plot(points_data, labels=labels, color_line=colours,
-                                    title=f"iteration {iteration + 1} -> start {aligns[0]} end {aligns[2]}",
-                                    annotate_step=annotate_step, points_count=len(x), alpha=alpha)
-            elif plot_type == "aligns":
-                plot = display_plot([[list(range(len(solution[2::8]))), solution[2::8]]], labels=['matrix'], color_line=['-m'],
-                                    title=f"iteration {iteration + 1}", annotate_step=annotate_step, points_count=len(x),
-                                    alpha=alpha)
-            else:
-                plot = display_plot([[M_j_coreg[0], M_j_coreg[1]]], labels = ['Моменти'], color_line = ['-m'],
-                                    title=f"iteration {iteration + 1}", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
-
-            flike = BytesIO()
-            plot.savefig(flike, format='png')
-            flike.seek(0)
-            image_png = flike.getvalue()
-            graph = base64.b64encode(image_png).decode('utf-8')
-            flike.close()
-
-            response_images.append(graph)
 
             # if curve_type != "loop" and iteration == 0:
             #     x = D_j_coreg[0, ::parts//6]
@@ -301,43 +244,39 @@ class Calculate(_Controller):
                         im_points_count = parts
 
                     if stabil and prew_iter_points is not None:
-                        added_points_k = (len(prew_iter_points[0]) - 1) / (len(D_j_coreg[0, ::parts//2]) - 1)
-                        prew_iter_points_with_half_x = np.array([[], []])
-                        prew_iter_points_with_half_y = np.array([[], []])
-                        for ffg in range(len(D_j_coreg[0, ::parts//2])):
-                            prew_iter_points_with_half_x = np.append(prew_iter_points_with_half_x, prew_iter_points[0][round(added_points_k * ffg)])
-                            prew_iter_points_with_half_y = np.append(prew_iter_points_with_half_y, prew_iter_points[1][round(added_points_k * ffg)])
+                        if len(prew_iter_points[0]) != len(D_j_coreg[0]) or (iteration + 1) % rotate_step == 0 or iteration % (rotate_step) == 0:
+                            x = D_j_coreg[0, ::parts]
+                            y = D_j_coreg[1, ::parts]
+                        else:
+                            D_j_coreg = prew_iter_points + (D_j_coreg - prew_iter_points) * 0.01
+                            x = D_j_coreg[0, ::parts]
+                            y = D_j_coreg[1, ::parts]
+                            # x = prew_iter_points[0, ::parts] + (
+                            #             D_j_coreg[0, ::parts] - prew_iter_points[0, ::parts]) * 0.01
+                            # y = prew_iter_points[1, ::parts] + (
+                            #             D_j_coreg[1, ::parts] - prew_iter_points[1, ::parts]) * 0.01
 
-                        prew_iter_points_with_half = np.array([prew_iter_points_with_half_x, prew_iter_points_with_half_y])
-                        current_points_with_half = D_j_coreg[:, ::parts//2]
+                            print(f" ")
 
-                        x = prew_iter_points_with_half[0, ::2] + (current_points_with_half[0, ::2] - prew_iter_points_with_half[0, ::2]) * 0.1
-                        y = prew_iter_points_with_half[1, ::2] + (current_points_with_half[1, ::2] - prew_iter_points_with_half[1, ::2]) * 0.1
+                        if (iteration + 1) % rotate_step == 0:
+                            for ind in range(len(psis), 0, -1):
+                                if abs(psis[ind - 1]) > 0.175:  # >10 ihflecsd
+                                    if D_j_coreg[0][parts * ind + parts // 2] not in x:
+                                        x = np.insert(x, ind + 1, D_j_coreg[0][parts * ind + parts // 2])
+                                        y = np.insert(y, ind + 1, D_j_coreg[1][parts * ind + parts // 2])
 
-                        for ind in range(len(psis), 0, -1):
-                            if abs(psis[ind - 1]) > 0.175:  # >10 ihflecsd
-                                if current_points_with_half[0][ind*2+1] not in x:
-                                    x = np.insert(x, ind + 1, prew_iter_points_with_half[0][ind*2+1]
-                                     + (current_points_with_half[0][ind*2+1] - prew_iter_points_with_half[0][ind*2+1]) * 0.1
-                                     )
-                                    y = np.insert(y, ind + 1, prew_iter_points_with_half[1][ind*2+1]
-                                     + (current_points_with_half[1][ind*2+1] - prew_iter_points_with_half[1][ind*2+1]) * 0.1)
+                                        point_type = np.insert(point_type, ind + 1, 2)
 
-                                    point_type = np.insert(point_type, ind + 1, 2)
+                                    x = np.insert(x, ind, D_j_coreg[0][parts * (ind - 1) + parts // 2])
+                                    y = np.insert(y, ind, D_j_coreg[1][parts * (ind - 1) + parts // 2])
 
-                                x = np.insert(x, ind, prew_iter_points_with_half[0][ind*2-1]
-                                     + (current_points_with_half[0][ind*2-1] - prew_iter_points_with_half[0][ind*2-1]) * 0.1
-                                     )
-                                y = np.insert(y, ind, prew_iter_points_with_half[1][ind*2-1]
-                                     + (current_points_with_half[1][ind*2-1] - prew_iter_points_with_half[1][ind*2-1]) * 0.1)
+                                    point_type = np.insert(point_type, ind, 2)
 
-                                point_type = np.insert(point_type, ind, 2)
+                                if abs(psis[ind - 1]) < 0.035 and len(psis) > im_points_count:  # < 2
+                                    x = np.delete(x, ind)
+                                    y = np.delete(y, ind)
 
-                            if abs(psis[ind - 1]) < 0.085 and len(psis) > im_points_count: # < 2
-                                x = np.delete(x, ind)
-                                y = np.delete(y, ind)
-
-                                point_type = np.delete(point_type, ind)
+                                    point_type = np.delete(point_type, ind)
 
                     else:
                         x = D_j_coreg[0, ::parts]
@@ -381,6 +320,73 @@ class Calculate(_Controller):
                 file_dataset_len = (len(x) - 1)
 
                 prew_iter_points = D_j_coreg
+
+            points_data = [[D_j_coreg[0], D_j_coreg[1]], [x, y]]
+            colours = ['-y', '']
+            labels = ["Сontinuous contour", ""]
+            annotate_step = [0, (file_dataset_len // 10 + 1)]
+            alpha = [1, 0]
+
+            spline_points = [[], []]
+            imagine_points = [[], []]
+            fixed_points = [[], []]
+            for i in range(file_dataset_len + 1):
+                if point_type[i] == 0:
+                    spline_points[0].append(x[i])
+                    spline_points[1].append(y[i])
+                elif point_type[i] == 1:
+                    fixed_points[0].append(x[i])
+                    fixed_points[1].append(y[i])
+                elif point_type[i] == 2:
+                    imagine_points[0].append(x[i])
+                    imagine_points[1].append(y[i])
+
+            if spline_points[0]:
+                points_data.append(spline_points)
+                colours.append('oy')
+                labels.append('')
+                annotate_step.append(0)
+                alpha.append(1)
+            if fixed_points[0]:
+                points_data.append(fixed_points)
+                colours.append('or')
+                labels.append('Fixed points')
+                annotate_step.append(0)
+                alpha.append(1)
+            if imagine_points[0]:
+                points_data.append(imagine_points)
+                colours.append('oC7')
+                labels.append('Imaginary points')
+                annotate_step.append(0)
+                alpha.append(1)
+
+            if plot_type == "data":
+                plot = display_plot(points_data, labels=labels, color_line=colours,
+                                    title=f"iteration {iteration + 1} -> start {aligns[0]} end {aligns[2]}",
+                                    annotate_step=annotate_step, points_count=len(x), alpha=alpha)
+            elif plot_type == "data_without_input":
+                plot = display_plot(points_data, labels=labels, color_line=colours,
+                                    title=f"iteration {iteration + 1} -> start {aligns[0]} end {aligns[2]}",
+                                    annotate_step=annotate_step, points_count=len(x), alpha=alpha)
+            elif plot_type == "aligns":
+                plot = display_plot([[list(range(len(solution[2::8]))), solution[2::8]]], labels=['matrix'],
+                                    color_line=['-m'],
+                                    title=f"iteration {iteration + 1}", annotate_step=annotate_step,
+                                    points_count=len(x),
+                                    alpha=alpha)
+            else:
+                plot = display_plot([[M_j_coreg[0], M_j_coreg[1]]], labels=['Моменти'], color_line=['-m'],
+                                    title=f"iteration {iteration + 1}", annotate_step=annotate_step,
+                                    points_count=len(x), alpha=alpha)
+
+            flike = BytesIO()
+            plot.savefig(flike, format='png')
+            flike.seek(0)
+            image_png = flike.getvalue()
+            graph = base64.b64encode(image_png).decode('utf-8')
+            flike.close()
+
+            response_images.append(graph)
 
 
         return {"plots": response_images, "quality": round(qulity, 5), "length": round(M_j_coreg[0][-1], 5)}
