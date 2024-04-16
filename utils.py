@@ -172,7 +172,7 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
                     matrix[i*8+9, i*8+4] = 1
                 coefs[i*8+7] = psis[i]
 
-            if P_align_coef is not None:
+            if P_align_coef is not None and point_type[i] == 0:
                 coefs[i*8+7] = -C*P_align_coef[i]
 
         coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
@@ -224,7 +224,7 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
 
 
             coefs[i*8+5] = psis[i]
-            if P_align_coef is not None:
+            if P_align_coef is not None and point_type[i] == 0:
                 coefs[i*8+7] = -C*P_align_coef[i]
 
     # display_table(matrix, bad_data = False, revert=True)
