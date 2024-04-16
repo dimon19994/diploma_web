@@ -82,70 +82,6 @@ def to_angle(x_a, y_a, x_b, y_b):
     cos_phi = (x_a * x_b + y_a * y_b) / (np.sqrt(x_a ** 2 + y_a ** 2) * np.sqrt(x_b ** 2 + y_b ** 2))
     return sin_phi, cos_phi
 
-def klotoid_align_value_count(d, pi_coef = 0, klotoid=False, index=1, clock="clockwise"):
-    psis = np.array([])
-
-    for i in range(2):
-        psi = to_angle(d[i][0], d[i][1], 1, 0)
-        #TODO  FIX
-        if clock == "clockwise":
-            cof_1 = 1
-            cof_2 = 0
-            minis_cof = -1
-        else:
-            cof_1 = 0
-            cof_2 = 1
-            minis_cof = 1
-
-        if psi[0] > 0 and psi[1] > 0:
-            print(1, end=" ")
-            if klotoid and i == index:
-                if pi_coef % 2 == cof_1:
-                    if np.arcsin(psi[0]) > 0:
-                        pi_coef -= 1
-                    else:
-                        pi_coef += 1
-                psis = np.append(psis, pi_coef * pi - minis_cof * np.arcsin(psi[0]))
-            else:
-                psis = np.append(psis, np.arcsin(psi[0]))
-
-        elif psi[0] > 0 and psi[1] < 0:
-            print(2, end=" ")
-            if klotoid and i == index:
-                psis = np.append(psis, pi_coef * pi + pi - np.arcsin(psi[0]))
-            else:
-                psis = np.append(psis, pi - np.arcsin(psi[0]))
-
-        elif psi[0] < 0 and psi[1] < 0:
-            print(3, end=" ")
-            if klotoid and i == index:
-                if pi_coef % 2 == cof_2:
-                    if np.arcsin(psi[0]) < 0:
-                        pi_coef += 1
-                    else:
-                        pi_coef -= 1
-                psis = np.append(psis, pi_coef * pi + minis_cof * np.arcsin(psi[0]))
-            else:
-                psis = np.append(psis, -pi - np.arcsin(psi[0]))
-
-        elif psi[0] < 0 and psi[1] > 0:
-            print(4, end=" ")
-            if klotoid and i == index:
-                psis = np.append(psis, 1 * pi + pi + np.arcsin(psi[0]))
-            else:
-                psis = np.append(psis, np.arcsin(psi[0]))
-        elif round(psi[0], 5) == 0 and round(psi[1], 5) == 1:
-            psis = np.append(psis, np.arcsin(psi[0]))
-        elif round(psi[0], 5) == 0 and round(psi[1], 5) == -1:
-            psis = np.append(psis, np.arcsin(psi[0]))
-        elif round(psi[0], 5) == 1 and round(psi[1], 5) == 0:
-            psis = np.append(psis, np.arcsin(psi[0]))
-        elif round(psi[0], 5) == -1 and round(psi[1], 5) == 0:
-            psis = np.append(psis, np.arcsin(psi[0]))
-        else:
-            print(psi, "\nERROR!!!")
-
-    return psis, pi_coef
 
 def align_value_count(M, d, curve_type):
     psis_sin = np.array([])
@@ -206,17 +142,14 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
         # k = 1/sum(S)
         k = (1/1000)
         chsh = False
-        additional_align = 0
 
         if iter > 4:
-            chsh = False
-            additional_align = 13 * ((iter) // 4)
-            # additional_align = 10 * (iter - 4)
+            chsh = True
 
         if iter > 5:
-            k = k * (1.001 ** (iter - 5))
+            k = k * (1.1 ** (iter - 5))
 
-        # print(iter, k)
+        print(k)
 
         for i in range(M):
             # Рівняння зв'язку
@@ -267,22 +200,12 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
             if P_align_coef is not None:
                 coefs[i*8+7] = -C*P_align_coef[i]
 
-        # --------------klotoid--------------
         coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
-        coefs[-2] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
+        coefs[-1] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
+        # print(degrees(coefs[1]), degrees(coefs[-1]))
 
         matrix[0][0], matrix[1][1] = 1, 1
-        matrix[-2][-3], matrix[-1][-2] = 1, 1
-        # --------------klotoid--------------
-
-        # coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
-        # # coefs[1] = extra_psis[0]
-        # coefs[-1] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
-        # # print(degrees(coefs[1]), degrees(coefs[-1]))
-        # matrix[0][0], matrix[1][1] = 1, 1
-        # matrix[-2][-4], matrix[-1][-3] = 1, 1
-
-        print(coefs[1], coefs[-2])
+        matrix[-2][-4], matrix[-1][-3] = 1, 1
     else:
         for i in range(M):
             # Рівняння зв'язку
