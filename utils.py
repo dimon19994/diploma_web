@@ -160,8 +160,6 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
                 (1, S[i], (cosh(k*S[i]) - 1)/k**2, (sinh(k*S[i]) - k*S[i])/k**3))
                 # (1, S[i], (1 - cos(k * S[i])) / k ** 2, (k * S[i] - sin(k * S[i])) / k ** 3))
 
-
-
             matrix[i*8+3, i*8], matrix[i*8+3, i*8+1], \
             matrix[i*8+3, i*8+2], matrix[i*8+3, i*8+3] = \
                 ((0, 1, S[i] / (I * E), S[i] ** 2 / (2 * I * E))
@@ -197,7 +195,7 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
                     matrix[i*8+9, i*8+4] = 1
                 coefs[i*8+7] = psis[i]
 
-            if P_align_coef is not None:
+            if P_align_coef is not None and point_type[i] == 0:
                 coefs[i*8+7] = -C*P_align_coef[i]
 
         coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
@@ -207,23 +205,47 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
         matrix[0][0], matrix[1][1] = 1, 1
         matrix[-2][-4], matrix[-1][-3] = 1, 1
     else:
+        # k = 1/sum(S)
+        k = (1 / 1000)
+        chsh = False
+
+        if iter > 4:
+            chsh = False
+
+        if iter > 5:
+            k = k * (1.1 ** (iter - 5))
+
+        print(k)
+
         for i in range(M):
             # Рівняння зв'язку
             matrix[i*8, i*8], matrix[i*8, i*8+1], \
             matrix[i*8, i*8+2], matrix[i*8, i*8+3] = \
-                (1, S[i], S[i]**2/(2*I*E), S[i]**3/(6*I*E))
+                ((1, S[i], S[i] ** 2 / (2 * I * E), S[i] ** 3 / (6 * I * E))
+                 if not chsh else
+                 (1, S[i], (cosh(k * S[i]) - 1) / k ** 2, (sinh(k * S[i]) - k * S[i]) / k ** 3))
+                 # (1, S[i], (1 - cos(k * S[i])) / k ** 2, (k * S[i] - sin(k * S[i])) / k ** 3))
 
             matrix[i*8+1, i*8], matrix[i*8+1, i*8+1], \
             matrix[i*8+1, i*8+2], matrix[i*8+1, i*8+3] = \
-                (0, 1, S[i]/(I*E), S[i]**2/(2*I*E))
+                ((0, 1, S[i] / (I * E), S[i] ** 2 / (2 * I * E))
+                 if not chsh else
+                 (0, 1, (k * sinh(k * S[i])) / k ** 2, (cosh(k * S[i]) - 1) / k ** 2))
+                 # (0, 1, k * sin(k * S[i]) / k ** 2, (1 - cos(k * S[i])) / k ** 2))
 
             matrix[i*8+2, i*8], matrix[i*8+2, i*8+1], \
             matrix[i*8+2, i*8+2], matrix[i*8+2, i*8+3] = \
-                (0, 0, 1, S[i])
+                ((0, 0, 1, S[i])
+                 if not chsh else
+                 (0, 0, cosh(k * S[i]), sinh(k * S[i]) / k))
+                 # (0, 0, cos(k * S[i]), sin(k * S[i]) / k))
 
             matrix[i*8+3, i*8], matrix[i*8+3, i*8+1], \
             matrix[i*8+3, i*8+2], matrix[i*8+3, i*8+3] = \
-                (0, 0, 0, 1)
+                ((0, 0, 0, 1)
+                 if not chsh else
+                 (0, 0, k * sinh(k * S[i]), cosh(k * S[i])))
+                 # (0, 0, -k * sin(k * S[i]), cos(k * S[i])))
 
             matrix[i*8, i*8+4], matrix[i*8+1, i*8+5], matrix[i*8+2, i*8+6], matrix[i*8+3, i*8+7] = -1, -1, -1, -1
 
@@ -249,7 +271,7 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
 
 
             coefs[i*8+5] = psis[i]
-            if P_align_coef is not None:
+            if P_align_coef is not None and point_type[i] == 0:
                 coefs[i*8+7] = -C*P_align_coef[i]
 
     # display_table(matrix, bad_data = False, revert=True)
@@ -270,6 +292,14 @@ def P_coef_count(M, d, X, Y, X_n, Y_n):
             psi_1 = np.sign(np.arcsin(to_angle(d[i+1][0], d[i+1][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0]))
             k_0 = (Y_n[(i+1)%M]-Y_n[i%M])/(X_n[(i+1)%M]-X_n[i%M])
             k_1 = (Y_n[(i+2)%M]-Y_n[(i+1)%M])/(X_n[(i+2)%M]-X_n[(i+1)%M])
+
+            if k_0 == -np.inf or k_0 == np.inf:
+                k_0 = 0
+                k_1 = 0
+            if k_1 == -np.inf or k_1 == np.inf:
+                k_0 = 0
+                k_1 = 0
+
             len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
             len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
             P_align_coef.append(psi_0 * len_0 if len_0 > len_1 else psi_1 * len_1)

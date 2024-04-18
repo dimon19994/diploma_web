@@ -99,7 +99,8 @@ class Calculate(_Controller):
                 C_ris *= C_step
                 C *= C_step
                 if curve_type == "loop":
-                    P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y)
+                    P_align_coef = None
+                    # P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y)
                 else:
                     P_align_coef = None
                 matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, P_align_coef=P_align_coef, extra_psis=psis_abs, aligns=aligns, iter=iteration)
@@ -163,7 +164,7 @@ class Calculate(_Controller):
                 if point_type[i] == 0:
                     spline_points[0].append(x[i])
                     spline_points[1].append(y[i])
-                elif point_type[i] == 1:
+                elif point_type[i-1] == 1:
                     fixed_points[0].append(x[i])
                     fixed_points[1].append(y[i])
                 elif point_type[i] == 2:
@@ -213,10 +214,11 @@ class Calculate(_Controller):
             #         point_type = np.insert(point_type, 1, 2)
             #     file_dataset_len = (len(x) - 1)
 
-            if curve_type != "loop" and iteration <= 4 and (len(x) - len(x_base)) < 25:
+            if iteration <= 4 and (len(x) - len(x_base)) < 25:
                 for im in range(3, int(parts**0.5)+1):
                     if parts % im == 0:
-                        im_points_count = im
+                        # im_points_count = im * 2
+                        im_points_count = 2
                         break
                 else:
                     im_points_count = parts
@@ -226,7 +228,7 @@ class Calculate(_Controller):
 
                 for i in range(int((len(x) - len(point_type)) / (im_points_count - 1))):
                     for j in range(im_points_count - 1):
-                        point_type = np.insert(point_type, im_points_count*i+1, 2)
+                        point_type = np.insert(point_type, im_points_count*i, 2)
 
                 file_dataset_len = (len(x) - 1)
 
