@@ -68,15 +68,15 @@ class Calculate(_Controller):
 
 
 
-        if curve_type == "not_loop":
-            aligns = [
-                int(self.request_data.get('align_1')),
-                int(self.request_data.get('direction_1', 1)),
-                int(self.request_data.get('align_2')),
-                int(self.request_data.get('direction_2', 1)),
-            ]
-        else:
-            aligns = None
+        # if curve_type == "not_loop":
+        #     aligns = [
+        #         int(self.request_data.get('align_1')),
+        #         int(self.request_data.get('direction_1', 1)),
+        #         int(self.request_data.get('align_2')),
+        #         int(self.request_data.get('direction_2', 1)),
+        #     ]
+        # else:
+        aligns = None
 
         puzzle_and_direction = f"{self.request_data.get('puzzle_index')}_{'straight' if straight else 'reverse'}"
         puzzle_index = self.request_data.get('puzzle_index')
@@ -166,10 +166,10 @@ class Calculate(_Controller):
                 # plot.show()
 
                 C = C_coef_value_count(file_dataset_len, S_input) / d_4
-                if curve_type == "loop":
-                    P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y)
-                else:
-                    P_align_coef = None
+                # if curve_type == "loop":
+                P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y)
+                # else:
+                #     P_align_coef = None
                 matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, P_align_coef=P_align_coef, extra_psis=psis_abs, aligns=aligns)
             else:
                 # C_ris /= C_step
@@ -459,7 +459,7 @@ class Calculate(_Controller):
                     annotate_step.append(0)
                     alpha.append(1)
 
-            if curve_type == "loop":  # and iteration == 0:
+            if curve_type == "loop" or curve_type == "not_loop" :  # and iteration == 0:
                 if iteration == 0:
 
                     start_1_iteration = time.time()
@@ -470,18 +470,15 @@ class Calculate(_Controller):
                     D_j_coreg_len = D_j_coreg.shape[1]
 
                     for index in range(len(x_base)):
-                        if index % 4 == 0:
+                        if index % 20 == 0:
                             i = (index * 10) % D_j_coreg_len
                             point = (D_j_coreg[0, i], D_j_coreg[1, i])
                         else:
                             current_point = np.array([x_base[index], y_base[index]])
-                            start = (index * 10 - 500) % D_j_coreg_len
-                            end = (index * 10 + 500) % D_j_coreg_len
+                            start = 0 if (index * 10 - 500) < 0 else (index * 10 - 500)
+                            end = D_j_coreg_len if (index * 10 + 500) > D_j_coreg_len else (index * 10 + 500)
 
-                            if start < end:
-                                interval = D_j_coreg[:, start:end]
-                            else:
-                                interval = np.hstack((D_j_coreg[:, start:], D_j_coreg[:, :end]))
+                            interval = D_j_coreg[:, start:end]
 
                             candidates = interval.T
                             distances = np.linalg.norm(candidates - current_point, axis=1)
@@ -587,24 +584,24 @@ class Calculate(_Controller):
                     d_4 = L ** 4
 
                 else:
-                    if iteration == 2:
-                        top_4_candidates = get_corner_points_candidate(M_j, D_j_coreg, straight, general_l, puzzle_index)
-                        print(f"{top_4_candidates/40=}")
-
-                        display_plot_plotly(
-                            [
-                                [
-                                    np.vstack((D_j_coreg[0][top_4_candidates], D_j_coreg[1][top_4_candidates])),
-                                    "lines+markers", "top 4", "#FF4500", {}, True
-                                ],
-                                [
-                                    D_j_coreg,
-                                    "lines", "all", "#054907", {}, True
-                                ],
-                            ],
-                            equal=True,
-                            filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{direction}/top_points_candidats_on_contur"
-                        )
+                    # if iteration == 2:
+                    #     top_4_candidates = get_corner_points_candidate(M_j, D_j_coreg, straight, general_l, puzzle_index)
+                    #     print(f"{top_4_candidates/40=}")
+                    #
+                    #     display_plot_plotly(
+                    #         [
+                    #             [
+                    #                 np.vstack((D_j_coreg[0][top_4_candidates], D_j_coreg[1][top_4_candidates])),
+                    #                 "lines+markers", "top 4", "#FF4500", {}, True
+                    #             ],
+                    #             [
+                    #                 D_j_coreg,
+                    #                 "lines", "all", "#054907", {}, True
+                    #             ],
+                    #         ],
+                    #         equal=True,
+                    #         filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{direction}/top_points_candidats_on_contur"
+                    #     )
 
                     start_n_iteration = time.time()
 
@@ -696,27 +693,6 @@ class Calculate(_Controller):
                     print(f"Время выполнения (general_n_time): {order_points_n_time - start_n_iteration:.4f} секунд")
 
                     if L / 2 < general_l:
-                        # if not top_4_candidates:
-                        #     if straight:
-                        #         minima_indices = find_all_local_minima(M_j[1])
-                        #         top_4_candidates = minima_indices[np.argsort(M_j[1][minima_indices])[:4]]
-                        #     else:
-                        #         maxima_indices = find_all_local_maxima(M_j[1])
-                        #         top_4_candidates = maxima_indices[np.argsort(M_j[1][maxima_indices])][-4::]
-                        #     display_plot_plotly(
-                        #         [
-                        #             [
-                        #                 np.array([[i, M_j[1][i]] for i in range(len(M_j[1]))]).transpose(),
-                        #                 "markers+lines", "M_j", "#E60000", {}, True
-                        #             ],
-                        #             [
-                        #                 np.array([[i, M_j_coreg[1][i]] for i in range(len(M_j_coreg[1]))]).transpose(),
-                        #                 "markers+lines", "M_j_coreg", "#0014E6", {}, True
-                        #             ],
-                        #         ],
-                        #         filename=f"smooth_contour/alalal"
-                        #     )
-                        #     print(top_4_candidates)
                         L = general_l
                     else:
                         L = L / 2

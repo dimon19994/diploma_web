@@ -191,12 +191,12 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
             if P_align_coef is not None and point_type[i] == 0:
                 coefs[i*8+7] = -C[i]*P_align_coef[i]
 
-        coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
-        coefs[-1] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
+        # coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
+        # coefs[-1] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
         # print(degrees(coefs[1]), degrees(coefs[-1]))
 
-        matrix[0][0], matrix[1][1] = 1, 1
-        matrix[-2][-4], matrix[-1][-3] = 1, 1
+        matrix[0][2], matrix[1][3] = 1, 1
+        matrix[-2][-2], matrix[-1][-1] = 1, 1
     else:
         for i in range(M):
             # Рівняння зв'язку
@@ -254,39 +254,39 @@ def len_calc(k, X, Y, x, y):
 
 def P_coef_count(M, d, X, Y, X_n, Y_n):
     P_align_coef = []
-    # P_align_coef_new = []
+    P_align_coef_new = []
 
-    # for i in range(M):
-    #     position = (X_n[i+1] - X_n[i]) * (Y[i+1] - Y_n[i]) - (Y_n[i+1] - Y_n[i]) * (X[i+1] - X[i])
-    #     if position < 0:
-    #         # sign = -1
-    #         sign = 1
-    #     elif position > 0:
-    #         # sign = 1
-    #         sign = -1
-    #     else:
-    #         print("000000")
-    #         sign = 0
+    for i in range(M):
+        position = (X_n[i+1] - X_n[i]) * (Y[i+1] - Y_n[i]) - (Y_n[i+1] - Y_n[i]) * (X[i+1] - X[i])
+        if position < 0:
+            # sign = -1
+            sign = 1
+        elif position > 0:
+            # sign = 1
+            sign = -1
+        else:
+            print("000000")
+            sign = 0
+
+        dist = sign * np.sqrt((X_n[i+1] - X[i+1]) ** 2 + (Y_n[i+1] - Y[i+1]) ** 2)
+        P_align_coef.append(dist)
+
     #
-    #     dist = sign * np.sqrt((X_n[i+1] - X[i+1]) ** 2 + (Y_n[i+1] - Y[i+1]) ** 2)
-    #     P_align_coef.append(dist)
-
-
-    if M != 1:
-        for i in range(M):
-            if str(np.arcsin(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])) == 'nan':
-                print()
-
-            psi_0 = np.sign(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
-            psi_1 = np.sign(to_angle(d[i+1][0], d[i+1][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
-            k_0 = (Y_n[(i+1)%M]-Y_n[i%M])/(X_n[(i+1)%M]-X_n[i%M])
-            k_1 = (Y_n[(i+2)%M]-Y_n[(i+1)%M])/(X_n[(i+2)%M]-X_n[(i+1)%M])
-            len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
-            len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
-            P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
-            # print(P_align_coef_new[i], P_align_coef[i])
-    else:
-        P_align_coef = None
+    # if M != 1:
+    #     for i in range(M):
+    #         if str(np.arcsin(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])) == 'nan':
+    #             print()
+    #
+    #         psi_0 = np.sign(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
+    #         psi_1 = np.sign(to_angle(d[i+1][0], d[i+1][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
+    #         k_0 = (Y_n[(i+1)%M]-Y_n[i%M])/(X_n[(i+1)%M]-X_n[i%M])
+    #         k_1 = (Y_n[(i+2)%M]-Y_n[(i+1)%M])/(X_n[(i+2)%M]-X_n[(i+1)%M])
+    #         len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
+    #         len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
+    #         P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
+    #         # print(P_align_coef_new[i], P_align_coef[i])
+    # else:
+    #     P_align_coef = None
     return P_align_coef
 
 
@@ -774,10 +774,12 @@ def find_near_point(x, y, x_new, y_new, D_j_coreg):
     replace_points = []
     changed_indexes = []
 
-    position_indices = [np.where((D_j_coreg_T == point).all(axis=1))[0][0] for point in mirror_points[:-1]]
+    position_indices = [np.where((D_j_coreg_T == point).all(axis=1))[0][0] for point in mirror_points]
 
     for idx, point_index in enumerate(position_indices):
-        indices_range = np.arange(point_index - search_radius, point_index + search_radius + 1) % total_len
+        start = 0 if point_index - search_radius < 0 else point_index - search_radius
+        end = total_len if point_index + search_radius > total_len else point_index + search_radius
+        indices_range = np.arange(start, end)
         candidate_points = D_j_coreg_T[indices_range]
 
         mask = [tuple(p) not in used_points for p in candidate_points]
@@ -896,18 +898,18 @@ def order_points(b_x, b_y, x, y, x_inp, y_inp):
     sorted_small_inp = small_inp[sorted_indices]
     # sorted_big_indices = np.array(indices)[sorted_indices]
 
-    # Определим, с какого индекса начинать (по позиции первой точки small)
-    start_point = small[0]
-    start_index = np.where((sorted_small == start_point).all(axis=1))[0][0]
+    # # Определим, с какого индекса начинать (по позиции первой точки small)
+    # start_point = small[0]
+    # start_index = np.where((sorted_small == start_point).all(axis=1))[0][0]
+    #
+    # # Циклический сдвиг
+    # rotated_small = np.roll(sorted_small, -start_index, axis=0)
+    # rotated_small_inp = np.roll(sorted_small_inp, -start_index, axis=0)
 
-    # Циклический сдвиг
-    rotated_small = np.roll(sorted_small, -start_index, axis=0)
-    rotated_small_inp = np.roll(sorted_small_inp, -start_index, axis=0)
+    # rotated_small = np.append(rotated_small, [rotated_small[0]], axis=0)
+    # rotated_small_inp = np.append(rotated_small_inp, [rotated_small_inp[0]], axis=0)
 
-    rotated_small = np.append(rotated_small, [rotated_small[0]], axis=0)
-    rotated_small_inp = np.append(rotated_small_inp, [rotated_small_inp[0]], axis=0)
-
-    return rotated_small[:, 0], rotated_small[:, 1], rotated_small_inp[:, 0], rotated_small_inp[:, 1]
+    return sorted_small[:, 0], sorted_small[:, 1], sorted_small_inp[:, 0], sorted_small_inp[:, 1]
 
 
 # def ccw(a, b, c):
