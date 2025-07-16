@@ -1,0 +1,21 @@
+h1, h2, h3, h4{
+    color: blueviolet;
+}
+
+#input_data_img{
+    max-width: 42em;
+    max-height: 42em;
+}
+
+.column{
+    display: inline-block;
+}
+
+.result_data_img{
+    position: relative;
+}
+
+.splide__slide img {
+    width: 90%;
+    height: auto;
+}
