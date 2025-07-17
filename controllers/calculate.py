@@ -182,7 +182,7 @@ class Calculate(_Controller):
                 # C /= C_step
                 C = C_coef_value_count(file_dataset_len, S_input) / d_4
                 P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y)
-                matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type[iteration], curve_type, P_align_coef=P_align_coef, aligns=aligns)
+                matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type[iteration], curve_type, P_align_coef=P_align_coef)
 
             # solution = np.linalg.solve(matrix, coefs)
             solution = spsolve(csr_matrix(matrix), coefs)

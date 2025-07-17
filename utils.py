@@ -254,39 +254,39 @@ def len_calc(k, X, Y, x, y):
 
 def P_coef_count(M, d, X, Y, X_n, Y_n):
     P_align_coef = []
-    # P_align_coef_new = []
+    P_align_coef_new = []
+
+    for i in range(M):
+        position = (X_n[i+1] - X_n[i]) * (Y[i+1] - Y_n[i]) - (Y_n[i+1] - Y_n[i]) * (X[i+1] - X[i])
+        if position < 0:
+            # sign = -1
+            sign = 1
+        elif position > 0:
+            # sign = 1
+            sign = -1
+        else:
+            print("000000")
+            sign = 0
+
+        dist = sign * np.sqrt((X_n[i+1] - X[i+1]) ** 2 + (Y_n[i+1] - Y[i+1]) ** 2)
+        P_align_coef.append(dist)
+
+
+    # if M != 1:
+    #     for i in range(M):
+    #         if str(np.arcsin(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])) == 'nan':
+    #             print()
     #
-    # for i in range(M):
-    #     position = (X_n[i+1] - X_n[i]) * (Y[i+1] - Y_n[i]) - (Y_n[i+1] - Y_n[i]) * (X[i+1] - X[i])
-    #     if position < 0:
-    #         # sign = -1
-    #         sign = 1
-    #     elif position > 0:
-    #         # sign = 1
-    #         sign = -1
-    #     else:
-    #         print("000000")
-    #         sign = 0
-    #
-    #     dist = sign * np.sqrt((X_n[i+1] - X[i+1]) ** 2 + (Y_n[i+1] - Y[i+1]) ** 2)
-    #     P_align_coef.append(dist)
-
-
-    if M != 1:
-        for i in range(M):
-            if str(np.arcsin(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])) == 'nan':
-                print()
-
-            psi_0 = np.sign(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
-            psi_1 = np.sign(to_angle(d[i+1][0], d[i+1][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
-            k_0 = (Y_n[(i+1)%M]-Y_n[i%M])/(X_n[(i+1)%M]-X_n[i%M])
-            k_1 = (Y_n[(i+2)%M]-Y_n[(i+1)%M])/(X_n[(i+2)%M]-X_n[(i+1)%M])
-            len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
-            len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
-            P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
-            # print(P_align_coef_new[i], P_align_coef[i])
-    else:
-        P_align_coef = None
+    #         psi_0 = np.sign(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
+    #         psi_1 = np.sign(to_angle(d[i+1][0], d[i+1][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
+    #         k_0 = (Y_n[(i+1)%M]-Y_n[i%M])/(X_n[(i+1)%M]-X_n[i%M])
+    #         k_1 = (Y_n[(i+2)%M]-Y_n[(i+1)%M])/(X_n[(i+2)%M]-X_n[(i+1)%M])
+    #         len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
+    #         len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
+    #         P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
+    #         # print(P_align_coef_new[i], P_align_coef[i])
+    # else:
+    #     P_align_coef = None
     return P_align_coef
 
 
