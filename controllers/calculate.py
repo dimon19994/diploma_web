@@ -95,8 +95,14 @@ class Calculate(_Controller):
         # x = x_base[::4]
         # y = y_base[::4]
 
-        x = x_base[::20]
-        y = y_base[::20]
+        first_iter_skip = 20
+
+        x = x_base[::first_iter_skip]
+        y = y_base[::first_iter_skip]
+
+        if len(x_base) % first_iter_skip != 0:
+            x = np.append(x, x_base[-1])
+            y = np.append(y, y_base[-1])
 
         if curve_type == "not_loop":
             file_dataset_len = len(x) - 1
@@ -170,7 +176,7 @@ class Calculate(_Controller):
                 P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y)
                 # else:
                 #     P_align_coef = None
-                matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, P_align_coef=P_align_coef, extra_psis=psis_abs, aligns=aligns)
+                matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, P_align_coef=P_align_coef)
             else:
                 # C_ris /= C_step
                 # C /= C_step
@@ -470,7 +476,7 @@ class Calculate(_Controller):
                     D_j_coreg_len = D_j_coreg.shape[1]
 
                     for index in range(len(x_base)):
-                        if index % 20 == 0:
+                        if index % first_iter_skip == 0:
                             i = (index * 10) % D_j_coreg_len
                             point = (D_j_coreg[0, i], D_j_coreg[1, i])
                         else:
