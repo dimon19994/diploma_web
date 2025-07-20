@@ -60,7 +60,22 @@ class Calculate(_Controller):
         puzzle_index = self.request_data.get('puzzle_index')
         direction = 'straight' if straight else 'reverse'
 
-        data = np.unique(np.array(data), axis=0)
+        data = np.array(data)
+
+        unique_data = np.unique(data, axis=0)
+
+        if data.shape[0] != unique_data.shape[0]:
+            print("AAALLLAAARRRMMM!!!!")
+
+            _, idx, counts = np.unique(data, return_index=True, return_counts=True, axis=0)
+            duplicate_values = data[np.sort(idx[counts > 1])]
+            print("Дублирующиеся значения:", duplicate_values)
+            duplicate_indices = [i for i, val in enumerate(data) if val in duplicate_values]
+            print("Индексы дублирующихся элементов:", duplicate_indices)
+
+            for kl in duplicate_indices[::2]:
+                data = np.delete(data, kl)
+
 
         x_base = data[:, 0]
         y_base = data[:, 1]
