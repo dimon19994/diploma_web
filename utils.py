@@ -146,8 +146,8 @@ def C_coef_value_count(M, S, C_proportion_coef):
 
 def C_coef_value_count(M, S):
     c_coef = np.array([])
-    for i in range(M):
-        c_coef = np.append(c_coef, (S[i-1]/2 + S[i]/2))
+    for i in range(M - 1):
+        c_coef = np.append(c_coef, (S[i]/2 + S[i+1]/2))
     return c_coef
 
 
@@ -188,15 +188,15 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
                     matrix[i*8+9, i*8+4] = 1
                 coefs[i*8+7] = psis[i]
 
-            if P_align_coef is not None and point_type[i] == 0:
-                coefs[i*8+7] = -C[i]*P_align_coef[i]
+                if P_align_coef is not None and point_type[i] == 0:
+                    coefs[i*8+9] = -C[i]*P_align_coef[i]
 
         # coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
         # coefs[-1] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
         # print(degrees(coefs[1]), degrees(coefs[-1]))
 
-        matrix[0][2], matrix[1][3] = 1, 1
-        matrix[-2][-2], matrix[-1][-1] = 1, 1
+        matrix[0][0], matrix[1][2] = 1, 1
+        matrix[-2][-4], matrix[-1][-2] = 1, 1
     else:
         for i in range(M):
             # Рівняння зв'язку
@@ -252,7 +252,7 @@ def len_calc(k, X, Y, x, y):
     return abs((y-Y)/(sqrt(1+k**2))-(k*(x-X))/(sqrt(1+k**2)))
 
 
-def P_coef_count(M, d, X, Y, X_n, Y_n):
+def P_coef_count(M, d, X, Y, X_n, Y_n, equation_type):
     P_align_coef = []
     P_align_coef_new = []
 
@@ -269,24 +269,26 @@ def P_coef_count(M, d, X, Y, X_n, Y_n):
             sign = 0
 
         dist = sign * np.sqrt((X_n[i+1] - X[i+1]) ** 2 + (Y_n[i+1] - Y[i+1]) ** 2)
-        P_align_coef.append(dist)
+        P_align_coef_new.append(dist)
 
+    if equation_type == "not_loop":
+        M -= 1
 
-    # if M != 1:
-    #     for i in range(M):
-    #         if str(np.arcsin(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])) == 'nan':
-    #             print()
-    #
-    #         psi_0 = np.sign(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
-    #         psi_1 = np.sign(to_angle(d[i+1][0], d[i+1][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
-    #         k_0 = (Y_n[(i+1)%M]-Y_n[i%M])/(X_n[(i+1)%M]-X_n[i%M])
-    #         k_1 = (Y_n[(i+2)%M]-Y_n[(i+1)%M])/(X_n[(i+2)%M]-X_n[(i+1)%M])
-    #         len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
-    #         len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
-    #         P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
-    #         # print(P_align_coef_new[i], P_align_coef[i])
-    # else:
-    #     P_align_coef = None
+    if M != 1:
+        for i in range(M):
+            if str(np.arcsin(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])) == 'nan':
+                print()
+
+            psi_0 = np.sign(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
+            psi_1 = np.sign(to_angle(d[i+1][0], d[i+1][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
+            k_0 = (Y_n[(i+1)]-Y_n[i])/(X_n[(i+1)]-X_n[i])
+            k_1 = (Y_n[(i+2)]-Y_n[(i+1)])/(X_n[(i+2)]-X_n[(i+1)])
+            len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
+            len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
+            P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
+            # print(P_align_coef_new[i], P_align_coef[i])
+    else:
+        P_align_coef = None
     return P_align_coef
 
 
@@ -447,108 +449,108 @@ def new_position_count(M, S, X, Y, solution, c_l_norm, c_n_norm, c_n_norm_j, d_l
     combined = [np.concatenate((cutted_solution[:, i:i + 1], sol_half_parts[i]), axis=1) for i in range(view_solution.shape[1])]
     full_solution = np.concatenate(combined, axis=1)
 
-    display_plot_plotly(
-        [
-            [
-                np.array([[i, X_disp[i]] for i in range(len(X_disp))]).transpose(),
-                "markers+lines", "X'", "#E60000", {}, True
-            ],
-            [
-                np.array([[i, Y_disp[i]] for i in range(len(Y_disp))]).transpose(),
-                "markers+lines", "Y'", "#E6B400", {}, True
-            ],
-            [
-                np.array([[i, X__disp[i]] for i in range(len(X__disp))]).transpose(),
-                "markers+lines", "X''", "#288E45", {}, True
-            ],
-            [
-                np.array([[i, Y__disp[i]] for i in range(len(Y__disp))]).transpose(),
-                "markers+lines", "Y''", "#0014E6", {}, True
-            ],
-        ],
-        filename=f"smooth_contour/Derivatives"
-    )
+    # display_plot_plotly(
+    #     [
+    #         [
+    #             np.array([[i, X_disp[i]] for i in range(len(X_disp))]).transpose(),
+    #             "markers+lines", "X'", "#E60000", {}, True
+    #         ],
+    #         [
+    #             np.array([[i, Y_disp[i]] for i in range(len(Y_disp))]).transpose(),
+    #             "markers+lines", "Y'", "#E6B400", {}, True
+    #         ],
+    #         [
+    #             np.array([[i, X__disp[i]] for i in range(len(X__disp))]).transpose(),
+    #             "markers+lines", "X''", "#288E45", {}, True
+    #         ],
+    #         [
+    #             np.array([[i, Y__disp[i]] for i in range(len(Y__disp))]).transpose(),
+    #             "markers+lines", "Y''", "#0014E6", {}, True
+    #         ],
+    #     ],
+    #     filename=f"smooth_contour/Derivatives"
+    # )
 
-    display_plot_plotly(
-        [
-            [
-                np.array([[i, full_solution[0][i]] for i in range(len(full_solution[0]))]).transpose(),
-                "markers+lines", "W full", "#B22222", {}, True
-            ],
-            [
-                np.array([[(points_in_parts + 1) * i, solution[::8][i]] for i in range(len(solution[::8]))]).transpose(),
-                "markers+lines", "W", "#FF0000", {}, True
-            ],
-            [
-                np.array([[i, full_solution[1][i]] for i in range(len(full_solution[1]))]).transpose(),
-                "markers+lines", "Aligns full", "#CC8400", {}, True
-            ],
-            [
-                np.array([[(points_in_parts + 1) * i, solution[1::8][i]] for i in range(len(solution[1::8]))]).transpose(),
-                "markers+lines", "Aligns", "#FFA500", {}, True
-            ],
-            [
-                np.array([[i, full_solution[2][i]] for i in range(len(full_solution[2]))]).transpose(),
-                "markers+lines", "M full", "#005500", {}, True
-            ],
-            [
-                np.array([[(points_in_parts + 1) * i, solution[2::8][i]] for i in range(len(solution[2::8]))]).transpose(),
-                "markers+lines", "M", "#008000", {}, True
-            ],
-            [
-                np.array([[i, full_solution[3][i]] for i in range(len(full_solution[3]))]).transpose(),
-                "markers+lines", "Q full", "#00008B", {}, True
-            ],
-            [
-                np.array([[(points_in_parts + 1) * i, solution[3::8][i]] for i in range(len(solution[3::8]))]).transpose(),
-                "markers+lines", "Q", "#0000FF", {}, True
-            ],
-        ],
-        filename=f"smooth_contour/Solution"
-    )
+    # display_plot_plotly(
+    #     [
+    #         [
+    #             np.array([[i, full_solution[0][i]] for i in range(len(full_solution[0]))]).transpose(),
+    #             "markers+lines", "W full", "#B22222", {}, True
+    #         ],
+    #         [
+    #             np.array([[(points_in_parts + 1) * i, solution[::8][i]] for i in range(len(solution[::8]))]).transpose(),
+    #             "markers+lines", "W", "#FF0000", {}, True
+    #         ],
+    #         [
+    #             np.array([[i, full_solution[1][i]] for i in range(len(full_solution[1]))]).transpose(),
+    #             "markers+lines", "Aligns full", "#CC8400", {}, True
+    #         ],
+    #         [
+    #             np.array([[(points_in_parts + 1) * i, solution[1::8][i]] for i in range(len(solution[1::8]))]).transpose(),
+    #             "markers+lines", "Aligns", "#FFA500", {}, True
+    #         ],
+    #         [
+    #             np.array([[i, full_solution[2][i]] for i in range(len(full_solution[2]))]).transpose(),
+    #             "markers+lines", "M full", "#005500", {}, True
+    #         ],
+    #         [
+    #             np.array([[(points_in_parts + 1) * i, solution[2::8][i]] for i in range(len(solution[2::8]))]).transpose(),
+    #             "markers+lines", "M", "#008000", {}, True
+    #         ],
+    #         [
+    #             np.array([[i, full_solution[3][i]] for i in range(len(full_solution[3]))]).transpose(),
+    #             "markers+lines", "Q full", "#00008B", {}, True
+    #         ],
+    #         [
+    #             np.array([[(points_in_parts + 1) * i, solution[3::8][i]] for i in range(len(solution[3::8]))]).transpose(),
+    #             "markers+lines", "Q", "#0000FF", {}, True
+    #         ],
+    #     ],
+    #     filename=f"smooth_contour/Solution"
+    # )
 
-    display_plot_plotly(
-        [
-            [
-                np.array([[i, full_solution[1][i]] for i in range(len(full_solution[1]))]).transpose(),
-                "markers+lines", "Aligns (solution + sol_half)", "#FF0000", {}, True
-            ],
-            [
-                np.array([[(points_in_parts + 1) * i, solution[1::8][i]] for i in
-                          range(len(solution[1::8]))]).transpose(),
-                "markers+lines", "Aligns (solution each 8)", "#FFA500", {}, True
-            ],
-            [
-                np.array([[i * (points_in_parts // 2 + 1), solution[1::4][i]] for i in
-                          range(len(solution[1::4]))]).transpose(),
-                "markers+lines", "Aligns (solution each 4)", "#008000", {}, True
-            ],
-            [
-                np.array([[i + i // points_in_parts + 1, disp_sol_half[1][i]] for i in range(len(disp_sol_half[1]))]).transpose(),
-                "markers+lines", "Aligns (sol_half)", "#0000FF", {}, True
-            ],
-        ],
-        filename=f"smooth_contour/Aligns"
-    )
+    # display_plot_plotly(
+    #     [
+    #         [
+    #             np.array([[i, full_solution[1][i]] for i in range(len(full_solution[1]))]).transpose(),
+    #             "markers+lines", "Aligns (solution + sol_half)", "#FF0000", {}, True
+    #         ],
+    #         [
+    #             np.array([[(points_in_parts + 1) * i, solution[1::8][i]] for i in
+    #                       range(len(solution[1::8]))]).transpose(),
+    #             "markers+lines", "Aligns (solution each 8)", "#FFA500", {}, True
+    #         ],
+    #         [
+    #             np.array([[i * (points_in_parts // 2 + 1), solution[1::4][i]] for i in
+    #                       range(len(solution[1::4]))]).transpose(),
+    #             "markers+lines", "Aligns (solution each 4)", "#008000", {}, True
+    #         ],
+    #         [
+    #             np.array([[i + i // points_in_parts + 1, disp_sol_half[1][i]] for i in range(len(disp_sol_half[1]))]).transpose(),
+    #             "markers+lines", "Aligns (sol_half)", "#0000FF", {}, True
+    #         ],
+    #     ],
+    #     filename=f"smooth_contour/Aligns"
+    # )
 
     D_j.append([X[-1] + solution[-4] * c_l_norm[-1], Y[-1] + solution[-4] * d_l_norm[-1]])
     if list_of_patrs:
         M_j_coreg.append([sum(S), (-(X__*Y_ - Y__*X_))/((sqrt(X_**2 + Y_**2))**3), S[-1]*list_of_patrs[0]])
         D_j_coreg.append([X[-1] + solution[-4] * c_n_norm[-1], Y[-1] + solution[-4] * d_n_norm[-1]])
 
-    display_plot_plotly(
-        [
-            [
-                np.array([[i, M_j[i][1]] for i in range(len(M_j))]).transpose(),
-                "markers+lines", "M_j", "#E60000", {}, True
-            ],
-            [
-                np.array([[i, M_j_coreg[i][1]] for i in range(len(M_j_coreg))]).transpose(),
-                "markers+lines", "M_j_coreg", "#0014E6", {}, True
-            ],
-        ],
-        filename=f"smooth_contour/Moments"
-    )
+    # display_plot_plotly(
+    #     [
+    #         [
+    #             np.array([[i, M_j[i][1]] for i in range(len(M_j))]).transpose(),
+    #             "markers+lines", "M_j", "#E60000", {}, True
+    #         ],
+    #         [
+    #             np.array([[i, M_j_coreg[i][1]] for i in range(len(M_j_coreg))]).transpose(),
+    #             "markers+lines", "M_j_coreg", "#0014E6", {}, True
+    #         ],
+    #     ],
+    #     filename=f"smooth_contour/Moments"
+    # )
 
     return map(np.transpose, map(np.array, [M_j, M_j_coreg, D_j, D_j_coreg]))
 
@@ -776,7 +778,12 @@ def find_near_point(x, y, x_new, y_new, D_j_coreg):
 
     position_indices = [np.where((D_j_coreg_T == point).all(axis=1))[0][0] for point in mirror_points]
 
-    for idx, point_index in enumerate(position_indices):
+    x_new_array.append(mirror_points[0][0])
+    y_new_array.append(mirror_points[0][1])
+    used_points.add(tuple(D_j_coreg_T[0]))
+    used_points.add(tuple(D_j_coreg_T[-1]))
+
+    for idx, point_index in enumerate(position_indices[1: -1], 1):
         start = 0 if point_index - search_radius < 0 else point_index - search_radius
         end = total_len if point_index + search_radius > total_len else point_index + search_radius
         indices_range = np.arange(start, end)
@@ -796,6 +803,21 @@ def find_near_point(x, y, x_new, y_new, D_j_coreg):
         used_points.add(tuple(chosen_point))
         x_new_array.append(chosen_point[0])
         y_new_array.append(chosen_point[1])
+
+    x_new_array.append(D_j_coreg_T[-1][0])
+    y_new_array.append(D_j_coreg_T[-1][1])
+
+    ressss = np.column_stack((x_new_array, y_new_array))
+    unique_ressss = np.unique(ressss, axis=0)
+
+    if ressss.shape[0] != unique_ressss.shape[0]:
+        print("AAALLLAAARRRMMM!!!!")
+
+        _, idx, counts = np.unique(ressss, return_index=True, return_counts=True, axis=0)
+        duplicate_values = ressss[np.sort(idx[counts > 1])]
+        print("Дублирующиеся значения:", duplicate_values)
+        duplicate_indices = [i for i, val in enumerate(ressss) if val in duplicate_values]
+        print("Индексы дублирующихся элементов:", duplicate_indices)
 
     return (
         np.array(x_new_array),
