@@ -285,7 +285,7 @@ def P_coef_count(M, d, X, Y, X_n, Y_n, equation_type):
             k_1 = (Y_n[(i+2)]-Y_n[(i+1)])/(X_n[(i+2)]-X_n[(i+1)])
             len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
             len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
-            if k_0 == np.inf and k_1 == np.inf:
+            if abs(k_0) == np.inf and abs(k_1) == np.inf:
                 P_align_coef.append(0)
                 continue
             P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
