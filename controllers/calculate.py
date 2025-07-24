@@ -43,7 +43,7 @@ class Calculate(_Controller):
 
         general_l_imput = float(self.request_data.get('general_l'))
         general_l = general_l_imput or 15
-        L = 50
+        L = 20
         d_4 = L**4
 
         parts = interval
@@ -110,7 +110,7 @@ class Calculate(_Controller):
 
         response_images = []
 
-        SHOW_NEW_TYPE_PLOTS = True
+        SHOW_NEW_TYPE_PLOTS = bool(int(self.request_data.get('show_new_plots', 1)))
 
         for iteration in range(iterations):
             print(iteration)
@@ -136,10 +136,11 @@ class Calculate(_Controller):
 
             if iteration == 0:
                 C = C_coef_value_count(file_dataset_len, S_input) / d_4
+                # C = np.full((file_dataset_len - 1), (sum(S_input) / file_dataset_len) / d_4)
                 matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, extra_psis=psis_abs, aligns=aligns)
             elif iteration > 0 and iteration < iterations:
-
                 C = C_coef_value_count(file_dataset_len, S_input) / d_4
+                # C = np.full((file_dataset_len - 1), (sum(S_input) / file_dataset_len) / d_4)
                 # if curve_type == "loop":
                 P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y, curve_type)
                 # else:
@@ -349,7 +350,7 @@ class Calculate(_Controller):
                         #                      M_j[1, top_4_indices[i - 1]:top_4_indices[i]]))
                         #
                         # f.write("\n".join([f"{i[0]} {i[1]}" for i in ddd.transpose()]))
-                        np.savetxt(file_path, M_j, delimiter=' ', fmt='%d')
+                        np.savetxt(file_path, M_j.T, delimiter=' ', fmt='%.10f')
 
                     with open(file_path_contur, "w") as f:
                         # if top_4_indices[i] < top_4_indices[i - 1]:
@@ -361,7 +362,7 @@ class Calculate(_Controller):
                         #                      D_j_coreg[1][top_4_indices[i - 1]:top_4_indices[i]]))
                         #
                         # f.write("\n".join([f"{i[0]} {i[1]}" for i in ddd.transpose()]))
-                        np.savetxt(file_path_contur, D_j_coreg, delimiter=' ', fmt='%d')
+                        np.savetxt(file_path_contur, D_j_coreg.T, delimiter=' ', fmt='%.10f')
 
                     # with open(f"{file_name}_data.txt", "w") as f:
                     #     for i in np.transpose(D_j):
@@ -700,9 +701,7 @@ class Calculate(_Controller):
                 #     # [[D_j_coreg[0, 1337:1345], D_j_coreg[1, 1337:1345]], "lines+markers", "new"],
                 # ], False)
 
-
-
-        return {"plots": response_images}
+        return {"plots": response_images, "curve": json.dumps(D_j_coreg.T.tolist())}
 
     def _get(self):
         return render_template("main_page.html")

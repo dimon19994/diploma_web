@@ -254,22 +254,22 @@ def len_calc(k, X, Y, x, y):
 
 def P_coef_count(M, d, X, Y, X_n, Y_n, equation_type):
     P_align_coef = []
-    P_align_coef_new = []
-
-    for i in range(M):
-        position = (X_n[i+1] - X_n[i]) * (Y[i+1] - Y_n[i]) - (Y_n[i+1] - Y_n[i]) * (X[i+1] - X[i])
-        if position < 0:
-            # sign = -1
-            sign = 1
-        elif position > 0:
-            # sign = 1
-            sign = -1
-        else:
-            print("000000")
-            sign = 0
-
-        dist = sign * np.sqrt((X_n[i+1] - X[i+1]) ** 2 + (Y_n[i+1] - Y[i+1]) ** 2)
-        P_align_coef_new.append(dist)
+    # P_align_coef_new = []
+    #
+    # for i in range(M):
+    #     position = (X_n[i+1] - X_n[i]) * (Y[i+1] - Y_n[i]) - (Y_n[i+1] - Y_n[i]) * (X[i+1] - X[i])
+    #     if position < 0:
+    #         # sign = -1
+    #         sign = 1
+    #     elif position > 0:
+    #         # sign = 1
+    #         sign = -1
+    #     else:
+    #         print("000000")
+    #         sign = 0
+    #
+    #     dist = sign * np.sqrt((X_n[i+1] - X[i+1]) ** 2 + (Y_n[i+1] - Y[i+1]) ** 2)
+    #     P_align_coef_new.append(dist)
 
     if equation_type == "not_loop":
         M -= 1
@@ -285,6 +285,9 @@ def P_coef_count(M, d, X, Y, X_n, Y_n, equation_type):
             k_1 = (Y_n[(i+2)]-Y_n[(i+1)])/(X_n[(i+2)]-X_n[(i+1)])
             len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
             len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
+            if k_0 == np.inf and k_1 == np.inf:
+                P_align_coef.append(0)
+                continue
             P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
             # print(P_align_coef_new[i], P_align_coef[i])
     else:
