@@ -114,7 +114,7 @@ class Calculate(_Controller):
 
         response_images = []
 
-        SHOW_NEW_TYPE_PLOTS = True
+        SHOW_NEW_TYPE_PLOTS = False
 
         for iteration in range(iterations):
             print(iteration)
@@ -589,6 +589,8 @@ class Calculate(_Controller):
                 else:
                     if iteration == 2:
                         top_4_candidates = get_corner_points_candidate(M_j, D_j_coreg, straight, general_l, puzzle_index)
+                        with open("top_4_candidates.txt", "a") as f:
+                            f.write(" ".join([str(int(i/40)) for i in top_4_candidates]) + "\n")
                         print(f"{top_4_candidates/40=}")
 
                         display_plot_plotly(
