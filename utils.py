@@ -471,7 +471,7 @@ def new_position_count(M, S, X, Y, solution, c_l_norm, c_n_norm, c_n_norm_j, d_l
     #             "markers+lines", "Y''", "#0014E6", {}, True
     #         ],
     #     ],
-    #     filename=f"smooth_contour/Derivatives"
+    #     filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/Derivatives"
     # )
 
     # display_plot_plotly(
@@ -509,7 +509,7 @@ def new_position_count(M, S, X, Y, solution, c_l_norm, c_n_norm, c_n_norm_j, d_l
     #             "markers+lines", "Q", "#0000FF", {}, True
     #         ],
     #     ],
-    #     filename=f"smooth_contour/Solution"
+    #     filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/Solution"
     # )
 
     # display_plot_plotly(
@@ -533,7 +533,7 @@ def new_position_count(M, S, X, Y, solution, c_l_norm, c_n_norm, c_n_norm_j, d_l
     #             "markers+lines", "Aligns (sol_half)", "#0000FF", {}, True
     #         ],
     #     ],
-    #     filename=f"smooth_contour/Aligns"
+    #     filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/Aligns"
     # )
 
     D_j.append([X[-1] + solution[-4] * c_l_norm[-1], Y[-1] + solution[-4] * d_l_norm[-1]])
@@ -552,7 +552,7 @@ def new_position_count(M, S, X, Y, solution, c_l_norm, c_n_norm, c_n_norm_j, d_l
     #             "markers+lines", "M_j_coreg", "#0014E6", {}, True
     #         ],
     #     ],
-    #     filename=f"smooth_contour/Moments"
+    #     filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/Moments"
     # )
 
     return map(np.transpose, map(np.array, [M_j, M_j_coreg, D_j, D_j_coreg]))
@@ -688,7 +688,7 @@ def display_plot_plotly(data, equal=False, filename=None, background_image=None)
 
     title = filename.split("/")[-1]
 
-    display_plot(data, filename=filename, html=True, s_json=True, title=title, equal=equal, background_image=background_image)
+    display_plot(data, filename=filename, html=False, s_json=True, title=title, equal=equal, background_image=background_image)
     # fig = go.Figure()
     #
     # for d in data:
@@ -1091,7 +1091,7 @@ def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_ind
                 "markers", "Corners", "#FFCC00", {}, True
             ],
         ],
-        filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{'straight' if direction else 'reverse'}/corner_candidats_moments"
+        filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/d_{general_l}/{puzzle_index}/{'straight' if direction else 'reverse'}/corner_candidats_moments"
     )
 
     return corner_points

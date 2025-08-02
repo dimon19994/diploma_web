@@ -59,6 +59,7 @@ class Calculate(_Controller):
         puzzle_and_direction = f"{self.request_data.get('puzzle_index')}_{'straight' if straight else 'reverse'}"
         puzzle_index = self.request_data.get('puzzle_index')
         direction = 'straight' if straight else 'reverse'
+        new_coef_method = bool(int(self.request_data.get('coef_method_new', 1)))
 
         data = np.array(data)
 
@@ -135,12 +136,16 @@ class Calculate(_Controller):
             S_input = len_value_count(file_dataset_len, d)
 
             if iteration == 0:
-                C = C_coef_value_count(file_dataset_len, S_input) / d_4
-                # C = np.full((file_dataset_len - 1), (sum(S_input) / file_dataset_len) / d_4)
+                if new_coef_method:
+                    C = C_coef_value_count(file_dataset_len, S_input) / d_4
+                else:
+                    C = np.full((file_dataset_len - 1), (sum(S_input) / file_dataset_len) / d_4)
                 matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, extra_psis=psis_abs, aligns=aligns)
             elif iteration > 0 and iteration < iterations:
-                C = C_coef_value_count(file_dataset_len, S_input) / d_4
-                # C = np.full((file_dataset_len - 1), (sum(S_input) / file_dataset_len) / d_4)
+                if new_coef_method:
+                    C = C_coef_value_count(file_dataset_len, S_input) / d_4
+                else:
+                    C = np.full((file_dataset_len - 1), (sum(S_input) / file_dataset_len) / d_4)
                 # if curve_type == "loop":
                 P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y, curve_type)
                 # else:
@@ -209,7 +214,7 @@ class Calculate(_Controller):
                     #     #             "lines", "Моменти", "#FF00FF", {}, True
                     #     #         ],
                     #     #     ],
-                    #     #     filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{direction}/pre_moments"
+                    #     #     filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/d_{general_l}/{puzzle_index}/{direction}/pre_moments"
                     #     # )
                     #     # minima_indices = find_local_minima(M_j[1])
                     #     # top_12_indices = minima_indices[np.argsort(M_j[1][minima_indices])]
@@ -254,7 +259,7 @@ class Calculate(_Controller):
                     #             ],
                     #         ],
                     #         equal=True,
-                    #         filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{direction}/top_points_on_contur"
+                    #         filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/d_{general_l}/{puzzle_index}/{direction}/top_points_on_contur"
                     #     )
                     #
                     #
@@ -267,7 +272,7 @@ class Calculate(_Controller):
                     #     #             "lines", "Моменти", "#FF00FF", {}, True
                     #     #         ],
                     #     #     ],
-                    #     #     filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{direction}/pre_moments"
+                    #     #     filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/d_{general_l}/{puzzle_index}/{direction}/pre_moments"
                     #     # )
                     #     # with open("jpt_file.csv", "w") as f:
                     #     #     for indddd in range(len(D_j_coreg[0])):
@@ -315,7 +320,7 @@ class Calculate(_Controller):
                     #             ],
                     #         ],
                     #         equal=True,
-                    #         filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{direction}/top_points_on_contur"
+                    #         filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/d_{general_l}/{puzzle_index}/{direction}/top_points_on_contur"
                     #     )
                     #
                     #     display_corner_points = M_j[:, top_4_indices][:2]
@@ -327,7 +332,7 @@ class Calculate(_Controller):
                                 "lines", "Моменти", "#FF00FF", {}, True
                             ],
                         ],
-                        filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{side}/{direction}/moments"
+                        filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/d_{general_l}/{puzzle_index}/{side}/{direction}/moments"
                     )
 
                     if straight:
@@ -336,6 +341,10 @@ class Calculate(_Controller):
                     else:
                         file_path = f"./processed_pazzle_data/{general_l}/puzzle/reverse/{file_name}_{side + 1}_data.txt"
                         file_path_contur = f"./processed_pazzle_data/{general_l}/conturs/reverse/{file_name}_{side + 1}_data.txt"
+
+                    if not new_coef_method:
+                        file_path = file_path.replace("processed_pazzle_data", f"processed_pazzle_data_old_method")
+                        file_path_contur = file_path_contur.replace("processed_pazzle_data", f"processed_pazzle_data_old_method")
 
                     check_dir(file_path)
                     check_dir(file_path_contur)
@@ -495,7 +504,7 @@ class Calculate(_Controller):
                                 [[x_with_skipped, y_with_skipped], "markers", "Bace new points", "#C2A4FF", {}, True],
                             ],
                             equal=True,
-                            filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{side}/{direction}/after_1_iter_find_skipped"
+                            filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/d_{general_l}/{puzzle_index}/{side}/{direction}/after_1_iter_find_skipped"
                         )
 
                     x_near, y_near, indexes, old_positions, new_positions = find_near_point(x_base, y_base, x_with_skipped, y_with_skipped, D_j_coreg)
@@ -527,7 +536,7 @@ class Calculate(_Controller):
                                 [old_positions.T if 0 not in old_positions.T.shape else [[], []], "markers", "Pont old position", "#D08D00", {}, True],
                             ],
                             equal=True,
-                            filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{side}/{direction}/after_1_iter_find_new_near_points"
+                            filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/d_{general_l}/{puzzle_index}/{side}/{direction}/after_1_iter_find_new_near_points"
                         )
 
                     x, y, x_base, y_base = order_points(D_j_coreg[0], D_j_coreg[1], x_near, y_near, x_base, y_base)
@@ -547,7 +556,7 @@ class Calculate(_Controller):
                                 [[x, y], "markers", "Bace new points", "#C2A4FF", {}, True],
                             ],
                             equal=True,
-                            filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{side}/{direction}/after_1_iter_after_ordering"
+                            filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/d_{general_l}/{puzzle_index}/{side}/{direction}/after_1_iter_after_ordering"
                         )
 
                     order_points_time = time.time()
@@ -576,7 +585,7 @@ class Calculate(_Controller):
                     #             ],
                     #         ],
                     #         equal=True,
-                    #         filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{direction}/top_points_candidats_on_contur"
+                    #         filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/d_{general_l}/{puzzle_index}/{direction}/top_points_candidats_on_contur"
                     #     )
 
                     start_n_iteration = time.time()
@@ -623,7 +632,7 @@ class Calculate(_Controller):
                                 ], "lines", "New iter", "#015AC8", {}, True],
                             ],
                             equal=True,
-                            filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{side}/{direction}/after_{iteration+1}_iter_find_new_near_points",
+                            filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/d_{general_l}/{puzzle_index}/{side}/{direction}/after_{iteration+1}_iter_find_new_near_points",
                         )
 
                     order_points_start = time.time()
@@ -661,7 +670,7 @@ class Calculate(_Controller):
                                 ], "lines", "New iter", "#015AC8", {}, True],
                             ],
                             equal=True,
-                            filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{side}/{direction}/after_{iteration+1}_iter_find_missing_spring",
+                            filename=f"smooth_contour{'_old_method' if not new_coef_method else ''}/d_{general_l}/{puzzle_index}/{side}/{direction}/after_{iteration+1}_iter_find_missing_spring",
                             background_image = f"/Users/dmyrto_koltsov/PycharmProjects/PDF/my_data/{file_name}.jpg"
                         )
 
