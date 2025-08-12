@@ -588,7 +588,7 @@ class Calculate(_Controller):
 
                 else:
                     if iteration == 2:
-                        top_4_candidates = get_corner_points_candidate(M_j, D_j_coreg, straight, general_l, puzzle_index)
+                        top_4_candidates = get_corner_points_candidate(M_j, D_j_coreg, straight, general_l, puzzle_index, file_name)
                         with open("top_4_candidates.txt", "a") as f:
                             f.write(" ".join([str(int(i/40)) for i in top_4_candidates]) + "\n")
                         print(f"{top_4_candidates/40=}")
@@ -605,7 +605,8 @@ class Calculate(_Controller):
                                 ],
                             ],
                             equal=True,
-                            filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{direction}/top_points_candidats_on_contur"
+                            save_path=f"./../plots_storage/static/plots/smooth_contour/{file_name}/d_{general_l}/{puzzle_index}/{direction}/",
+                            filename="top_points_candidats_on_contur"
                         )
 
                     start_n_iteration = time.time()

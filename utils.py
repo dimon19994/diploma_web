@@ -7,6 +7,8 @@ from shapely.geometry import Polygon
 from scipy.signal import find_peaks
 
 from math import pi, sqrt, sin, cos, radians
+from plots_lib import display_plot
+
 
 from constants import PLOT_DATA_ROUND, DPI_VALIE, PLOT_DISPLAY_SIZE, PLOT_LEGEND_FONT_SIZE, PLOT_MARKET_SIZE,\
                       PLOT_LINE_WIDTH, PLOT_TITLE_FONT_SIZE, PLOT_ANOTATE_FONT_SIZE, PLOT_ASIX_FONT_SIZE, I, E
@@ -16,55 +18,55 @@ def get_request_data(request):
     return dict(request.json if request.is_json else (request.form.items() or {}))
 
 
-def display_plot(arguments, labels, color_line, title, annotate_step, points_count, alpha=None, show=None, axis=None):
-    show = show or range(len(arguments))
-    alpha = alpha or [1 for i in range(len(arguments))]
-    plt.figure(figsize=PLOT_DISPLAY_SIZE, dpi = DPI_VALIE)
-    for i in show:
-        if i == "":
-            continue
-        plt.plot(*np.round(arguments[i], PLOT_DATA_ROUND), color_line[i], label=labels[i], markersize=PLOT_MARKET_SIZE, linewidth=PLOT_LINE_WIDTH, alpha=alpha[i])
-        plt.rc('legend', fontsize=PLOT_LEGEND_FONT_SIZE)
-        if annotate_step[i]:
-            for j in range(0, len(arguments[i][0])-(1 if len(arguments[i][0]) != points_count else 0), annotate_step[i]):
-                mid_x, mid_y = (sum(arguments[i][0])/len(arguments[i][0])), (sum(arguments[i][1])/len(arguments[i][1]))
-                scale_x, scale_y = (abs(max(arguments[i][0])) + abs(min(arguments[i][0])))/2, (abs(max(arguments[i][1])) + abs(min(arguments[i][1])))/2
-                try:
-                    if arguments[i][0][j] != 0:
-                        x_add = abs(arguments[i][0][j])/arguments[i][0][j]/25*abs(mid_x-arguments[i][0][j])
-                    else:
-                        x_add = 0
-                except:
-                    x_add = 0
-                try:
-                    if arguments[i][1][j] != 0:
-                        y_add = abs(arguments[i][1][j])/arguments[i][1][j]/25*abs(mid_y-arguments[i][1][j])
-                    else:
-                        y_add = 0
-                except:
-                    y_add = 0
-                plt.annotate(j+1, (arguments[i][0][j] - 0.025 * scale_x + x_add, arguments[i][1][j] - 0.015 * scale_x + y_add), fontsize=PLOT_ANOTATE_FONT_SIZE)
-                # plt.annotate(j+1, (arguments[i][0][j], arguments[i][1][j]), fontsize=plot_annotate_font_size)
-    plt.suptitle(title, fontsize=PLOT_TITLE_FONT_SIZE)
-
-    if axis:
-        print(axis)
-        if axis == 2:
-            plt.xlim([-0.25, 2.25])
-            plt.ylim([-1.25, 1.25])
-            plt.grid()
-        else:
-            plt.xlim([-2.5, 2.5])
-            plt.ylim([-1.5, 1.5])
-
-    # plt.xticks([])
-    # plt.yticks([])
-    plt.tick_params(labelsize=PLOT_ASIX_FONT_SIZE)
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-
-    return plt
+# def display_plot(arguments, labels, color_line, title, annotate_step, points_count, alpha=None, show=None, axis=None):
+#     show = show or range(len(arguments))
+#     alpha = alpha or [1 for i in range(len(arguments))]
+#     plt.figure(figsize=PLOT_DISPLAY_SIZE, dpi = DPI_VALIE)
+#     for i in show:
+#         if i == "":
+#             continue
+#         plt.plot(*np.round(arguments[i], PLOT_DATA_ROUND), color_line[i], label=labels[i], markersize=PLOT_MARKET_SIZE, linewidth=PLOT_LINE_WIDTH, alpha=alpha[i])
+#         plt.rc('legend', fontsize=PLOT_LEGEND_FONT_SIZE)
+#         if annotate_step[i]:
+#             for j in range(0, len(arguments[i][0])-(1 if len(arguments[i][0]) != points_count else 0), annotate_step[i]):
+#                 mid_x, mid_y = (sum(arguments[i][0])/len(arguments[i][0])), (sum(arguments[i][1])/len(arguments[i][1]))
+#                 scale_x, scale_y = (abs(max(arguments[i][0])) + abs(min(arguments[i][0])))/2, (abs(max(arguments[i][1])) + abs(min(arguments[i][1])))/2
+#                 try:
+#                     if arguments[i][0][j] != 0:
+#                         x_add = abs(arguments[i][0][j])/arguments[i][0][j]/25*abs(mid_x-arguments[i][0][j])
+#                     else:
+#                         x_add = 0
+#                 except:
+#                     x_add = 0
+#                 try:
+#                     if arguments[i][1][j] != 0:
+#                         y_add = abs(arguments[i][1][j])/arguments[i][1][j]/25*abs(mid_y-arguments[i][1][j])
+#                     else:
+#                         y_add = 0
+#                 except:
+#                     y_add = 0
+#                 plt.annotate(j+1, (arguments[i][0][j] - 0.025 * scale_x + x_add, arguments[i][1][j] - 0.015 * scale_x + y_add), fontsize=PLOT_ANOTATE_FONT_SIZE)
+#                 # plt.annotate(j+1, (arguments[i][0][j], arguments[i][1][j]), fontsize=plot_annotate_font_size)
+#     plt.suptitle(title, fontsize=PLOT_TITLE_FONT_SIZE)
+#
+#     if axis:
+#         print(axis)
+#         if axis == 2:
+#             plt.xlim([-0.25, 2.25])
+#             plt.ylim([-1.25, 1.25])
+#             plt.grid()
+#         else:
+#             plt.xlim([-2.5, 2.5])
+#             plt.ylim([-1.5, 1.5])
+#
+#     # plt.xticks([])
+#     # plt.yticks([])
+#     plt.tick_params(labelsize=PLOT_ASIX_FONT_SIZE)
+#     plt.legend()
+#     plt.grid()
+#     plt.tight_layout()
+#
+#     return plt
 
 def vector_cords(M, X, Y):
     d = np.array([])
@@ -674,16 +676,19 @@ def find_max_area_quadrilateral(points):
     return quad
 
 
-def display_plot_plotly(data, equal=False, filename=None, background_image=None):
-    import sys
-    import os
-
-    sys.path.append(os.path.abspath("../plots_storage"))
-    from plots import display_plot
-
+def display_plot_plotly(data, equal=False, filename=None, save_path="./", background_image=None):
     title = filename.split("/")[-1]
 
-    display_plot(data, filename=filename, html=True, s_json=True, title=title, equal=equal, background_image=background_image)
+    display_plot(
+        data,
+        filename=filename,
+        html=False,
+        s_json=True,
+        title=title,
+        equal=equal,
+        background_image=background_image,
+        save_path=save_path,
+    )
     # fig = go.Figure()
     #
     # for d in data:
@@ -994,7 +999,7 @@ def delete_near_points(arr, candidates, order):
     return selected
 
 
-def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_index):
+def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_index, filename):
     arr = M_j[1]
     arr = np.insert(arr, 0, M_j[1][-2])
     max_val = np.max(arr)
@@ -1042,7 +1047,7 @@ def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_ind
 
     valid_quads.sort(key=lambda x: x[1])
     delete_indexes = set()
-    [delete_indexes.update(i[0]) for i in valid_quads[:len(low_peaks) // 2]]
+    [delete_indexes.update(i[0]) for i in valid_quads[:min(len(low_peaks), len(high_peaks)) // 2]]
     corner_points = np.delete(np.array(all_extrema), list(delete_indexes))
 
     display_plot_plotly(
@@ -1064,7 +1069,8 @@ def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_ind
                 "markers", "Corners", "#FFCC00", {}, True
             ],
         ],
-        filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{'straight' if direction else 'reverse'}/corner_candidats_moments"
+        save_path=f"./../plots_storage/static/plots/smooth_contour/{filename}/d_{general_l}/{puzzle_index}/{'straight' if direction else 'reverse'}/",
+        filename="corner_candidats_moments"
     )
 
     return corner_points
