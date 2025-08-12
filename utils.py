@@ -11,7 +11,8 @@ from plots_lib import display_plot
 
 
 from constants import PLOT_DATA_ROUND, DPI_VALIE, PLOT_DISPLAY_SIZE, PLOT_LEGEND_FONT_SIZE, PLOT_MARKET_SIZE,\
-                      PLOT_LINE_WIDTH, PLOT_TITLE_FONT_SIZE, PLOT_ANOTATE_FONT_SIZE, PLOT_ASIX_FONT_SIZE, I, E
+                      PLOT_LINE_WIDTH, PLOT_TITLE_FONT_SIZE, PLOT_ANOTATE_FONT_SIZE, PLOT_ASIX_FONT_SIZE, I, E,\
+                      MATERIALS_PATH
 
 
 def get_request_data(request):
@@ -1069,7 +1070,10 @@ def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_ind
                 "markers", "Corners", "#FFCC00", {}, True
             ],
         ],
-        save_path=f"./../plots_storage/static/plots/smooth_contour/{filename}/d_{general_l}/{puzzle_index}/{'straight' if direction else 'reverse'}/",
+        save_path=os.path.join(
+            MATERIALS_PATH,
+            f"smooth_contour/{filename.rsplit('_', 1)[0]}/corners/{puzzle_index}/"
+        ),
         filename="corner_candidats_moments"
     )
 

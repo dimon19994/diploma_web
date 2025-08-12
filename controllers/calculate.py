@@ -30,6 +30,7 @@ from utils import (
     get_corner_points_candidate,
     check_dir,
 )
+from constants import MATERIALS_PATH
 
 
 class Calculate(_Controller):
@@ -605,7 +606,10 @@ class Calculate(_Controller):
                                 ],
                             ],
                             equal=True,
-                            save_path=f"./../plots_storage/static/plots/smooth_contour/{file_name}/d_{general_l}/{puzzle_index}/{direction}/",
+                            save_path=os.path.join(
+                                MATERIALS_PATH,
+                                f"smooth_contour/{file_name.rsplit('_', 1)[0]}/corners/{puzzle_index}/"
+                            ),
                             filename="top_points_candidats_on_contur"
                         )
 
