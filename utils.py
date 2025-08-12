@@ -6,6 +6,8 @@ import numpy as np
 from shapely.geometry import Polygon
 from scipy.signal import find_peaks
 
+from plots_lib import display_plot
+
 from math import pi, sqrt, sin, cos, radians
 
 from constants import PLOT_DATA_ROUND, DPI_VALIE, PLOT_DISPLAY_SIZE, PLOT_LEGEND_FONT_SIZE, PLOT_MARKET_SIZE,\
@@ -16,55 +18,55 @@ def get_request_data(request):
     return dict(request.json if request.is_json else (request.form.items() or {}))
 
 
-def display_plot(arguments, labels, color_line, title, annotate_step, points_count, alpha=None, show=None, axis=None):
-    show = show or range(len(arguments))
-    alpha = alpha or [1 for i in range(len(arguments))]
-    plt.figure(figsize=PLOT_DISPLAY_SIZE, dpi = DPI_VALIE)
-    for i in show:
-        if i == "":
-            continue
-        plt.plot(*np.round(arguments[i], PLOT_DATA_ROUND), color_line[i], label=labels[i], markersize=PLOT_MARKET_SIZE, linewidth=PLOT_LINE_WIDTH, alpha=alpha[i])
-        plt.rc('legend', fontsize=PLOT_LEGEND_FONT_SIZE)
-        if annotate_step[i]:
-            for j in range(0, len(arguments[i][0])-(1 if len(arguments[i][0]) != points_count else 0), annotate_step[i]):
-                mid_x, mid_y = (sum(arguments[i][0])/len(arguments[i][0])), (sum(arguments[i][1])/len(arguments[i][1]))
-                scale_x, scale_y = (abs(max(arguments[i][0])) + abs(min(arguments[i][0])))/2, (abs(max(arguments[i][1])) + abs(min(arguments[i][1])))/2
-                try:
-                    if arguments[i][0][j] != 0:
-                        x_add = abs(arguments[i][0][j])/arguments[i][0][j]/25*abs(mid_x-arguments[i][0][j])
-                    else:
-                        x_add = 0
-                except:
-                    x_add = 0
-                try:
-                    if arguments[i][1][j] != 0:
-                        y_add = abs(arguments[i][1][j])/arguments[i][1][j]/25*abs(mid_y-arguments[i][1][j])
-                    else:
-                        y_add = 0
-                except:
-                    y_add = 0
-                plt.annotate(j+1, (arguments[i][0][j] - 0.025 * scale_x + x_add, arguments[i][1][j] - 0.015 * scale_x + y_add), fontsize=PLOT_ANOTATE_FONT_SIZE)
-                # plt.annotate(j+1, (arguments[i][0][j], arguments[i][1][j]), fontsize=plot_annotate_font_size)
-    plt.suptitle(title, fontsize=PLOT_TITLE_FONT_SIZE)
-
-    if axis:
-        print(axis)
-        if axis == 2:
-            plt.xlim([-0.25, 2.25])
-            plt.ylim([-1.25, 1.25])
-            plt.grid()
-        else:
-            plt.xlim([-2.5, 2.5])
-            plt.ylim([-1.5, 1.5])
-
-    # plt.xticks([])
-    # plt.yticks([])
-    plt.tick_params(labelsize=PLOT_ASIX_FONT_SIZE)
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-
-    return plt
+# def display_plot(arguments, labels, color_line, title, annotate_step, points_count, alpha=None, show=None, axis=None):
+#     show = show or range(len(arguments))
+#     alpha = alpha or [1 for i in range(len(arguments))]
+#     plt.figure(figsize=PLOT_DISPLAY_SIZE, dpi = DPI_VALIE)
+#     for i in show:
+#         if i == "":
+#             continue
+#         plt.plot(*np.round(arguments[i], PLOT_DATA_ROUND), color_line[i], label=labels[i], markersize=PLOT_MARKET_SIZE, linewidth=PLOT_LINE_WIDTH, alpha=alpha[i])
+#         plt.rc('legend', fontsize=PLOT_LEGEND_FONT_SIZE)
+#         if annotate_step[i]:
+#             for j in range(0, len(arguments[i][0])-(1 if len(arguments[i][0]) != points_count else 0), annotate_step[i]):
+#                 mid_x, mid_y = (sum(arguments[i][0])/len(arguments[i][0])), (sum(arguments[i][1])/len(arguments[i][1]))
+#                 scale_x, scale_y = (abs(max(arguments[i][0])) + abs(min(arguments[i][0])))/2, (abs(max(arguments[i][1])) + abs(min(arguments[i][1])))/2
+#                 try:
+#                     if arguments[i][0][j] != 0:
+#                         x_add = abs(arguments[i][0][j])/arguments[i][0][j]/25*abs(mid_x-arguments[i][0][j])
+#                     else:
+#                         x_add = 0
+#                 except:
+#                     x_add = 0
+#                 try:
+#                     if arguments[i][1][j] != 0:
+#                         y_add = abs(arguments[i][1][j])/arguments[i][1][j]/25*abs(mid_y-arguments[i][1][j])
+#                     else:
+#                         y_add = 0
+#                 except:
+#                     y_add = 0
+#                 plt.annotate(j+1, (arguments[i][0][j] - 0.025 * scale_x + x_add, arguments[i][1][j] - 0.015 * scale_x + y_add), fontsize=PLOT_ANOTATE_FONT_SIZE)
+#                 # plt.annotate(j+1, (arguments[i][0][j], arguments[i][1][j]), fontsize=plot_annotate_font_size)
+#     plt.suptitle(title, fontsize=PLOT_TITLE_FONT_SIZE)
+#
+#     if axis:
+#         print(axis)
+#         if axis == 2:
+#             plt.xlim([-0.25, 2.25])
+#             plt.ylim([-1.25, 1.25])
+#             plt.grid()
+#         else:
+#             plt.xlim([-2.5, 2.5])
+#             plt.ylim([-1.5, 1.5])
+#
+#     # plt.xticks([])
+#     # plt.yticks([])
+#     plt.tick_params(labelsize=PLOT_ASIX_FONT_SIZE)
+#     plt.legend()
+#     plt.grid()
+#     plt.tight_layout()
+#
+#     return plt
 
 def vector_cords(M, X, Y):
     d = np.array([])
@@ -195,6 +197,8 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
         # coefs[-1] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
         # print(degrees(coefs[1]), degrees(coefs[-1]))
 
+        # matrix[0][2], matrix[1][3] = 1, 1
+        # matrix[-2][-2], matrix[-1][-1] = 1, 1
         matrix[0][0], matrix[1][2] = 1, 1
         matrix[-2][-4], matrix[-1][-2] = 1, 1
     else:
@@ -254,44 +258,52 @@ def len_calc(k, X, Y, x, y):
 
 def P_coef_count(M, d, X, Y, X_n, Y_n, equation_type):
     P_align_coef = []
-    # P_align_coef_new = []
+    P_align_coef_new = []
+
+    for i in range(M):
+        # position = (X_n[i+1] - X_n[i]) * (Y[i+1] - Y_n[i]) - (Y_n[i+1] - Y_n[i]) * (X[i+1] - X[i])
+        # if position < 0:
+        #     # sign = -1
+        #     sign = 1
+        # elif position > 0:
+        #     # sign = 1
+        #     sign = -1
+        # else:
+        #     print("000000")
+        #     sign = 0
+
+        psi = np.sign(to_angle(d[i][0], d[i][1], X[i + 1] - X_n[i + 1], Y[i + 1] - Y_n[i + 1])[0])
+
+        dist = psi * np.sqrt((X_n[i+1] - X[i+1]) ** 2 + (Y_n[i+1] - Y[i+1]) ** 2)
+        P_align_coef.append(dist)
+
+    # if equation_type == "not_loop":
+    #     M -= 1
     #
-    # for i in range(M):
-    #     position = (X_n[i+1] - X_n[i]) * (Y[i+1] - Y_n[i]) - (Y_n[i+1] - Y_n[i]) * (X[i+1] - X[i])
-    #     if position < 0:
-    #         # sign = -1
-    #         sign = 1
-    #     elif position > 0:
-    #         # sign = 1
-    #         sign = -1
-    #     else:
-    #         print("000000")
-    #         sign = 0
+    # if M != 1:
+    #     for i in range(M):
+    #         if str(np.arcsin(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])) == 'nan':
+    #             print()
     #
-    #     dist = sign * np.sqrt((X_n[i+1] - X[i+1]) ** 2 + (Y_n[i+1] - Y[i+1]) ** 2)
-    #     P_align_coef_new.append(dist)
-
-    if equation_type == "not_loop":
-        M -= 1
-
-    if M != 1:
-        for i in range(M):
-            if str(np.arcsin(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])) == 'nan':
-                print()
-
-            psi_0 = np.sign(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
-            psi_1 = np.sign(to_angle(d[i+1][0], d[i+1][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
-            k_0 = (Y_n[(i+1)]-Y_n[i])/(X_n[(i+1)]-X_n[i])
-            k_1 = (Y_n[(i+2)]-Y_n[(i+1)])/(X_n[(i+2)]-X_n[(i+1)])
-            len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
-            len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
-            if abs(k_0) == np.inf and abs(k_1) == np.inf:
-                P_align_coef.append(0)
-                continue
-            P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
-            # print(P_align_coef_new[i], P_align_coef[i])
-    else:
-        P_align_coef = None
+    #         psi_0 = np.sign(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
+    #         psi_1 = np.sign(to_angle(d[i+1][0], d[i+1][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
+    #         k_0 = (Y_n[(i+1)]-Y_n[i])/(X_n[(i+1)]-X_n[i])
+    #         k_1 = (Y_n[(i+2)]-Y_n[(i+1)])/(X_n[(i+2)]-X_n[(i+1)])
+    #         len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
+    #         len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
+    #         if abs(k_0) == np.inf and abs(k_1) == np.inf:
+    #             P_align_coef.append(0)
+    #             continue
+    #         elif abs(k_0) == np.inf:
+    #             P_align_coef.append(psi_1 * len_1)
+    #             continue
+    #         elif abs(k_1) == np.inf:
+    #             P_align_coef.append(psi_0 * len_0)
+    #             continue
+    #         P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
+    #         # print(P_align_coef_new[i], P_align_coef[i])
+    # else:
+    #     P_align_coef = None
     return P_align_coef
 
 
@@ -679,16 +691,19 @@ def find_max_area_quadrilateral(points):
     return quad
 
 
-def display_plot_plotly(data, equal=False, filename=None, background_image=None):
-    import sys
-    import os
-
-    sys.path.append(os.path.abspath("../plots_storage"))
-    from plots import display_plot
-
+def display_plot_plotly(data, equal=False, filename=None, save_path="./", background_image=None):
     title = filename.split("/")[-1]
 
-    display_plot(data, filename=filename, html=False, s_json=True, title=title, equal=equal, background_image=background_image)
+    display_plot(
+        data,
+        filename=filename,
+        html=False,
+        s_json=True,
+        title=title,
+        equal=equal,
+        background_image=background_image,
+        save_path = save_path
+    )
     # fig = go.Figure()
     #
     # for d in data:
