@@ -1117,5 +1117,74 @@ def check_dir(path):
         os.makedirs(path)
 
 
+def display_curve_with_curvatire(M, nx, ny, points):
+    import plotly.graph_objects as go
+    x, y = points
+
+    width = - M[0][-1] * 0.035 * (np.abs(M[1]) / (np.abs(M[1]).max() + 1e-12))
+    x_off = x + nx * width * np.sign(M[1])
+    y_off = y + ny * width * np.sign(M[1])
+
+    fig = go.Figure()
+
+    # Лента кривизны (заливка между кривой и смещённой кривой)
+    fig.add_trace(go.Scatter(
+        x=np.r_[x, x_off[::-1]],
+        y=np.r_[y, y_off[::-1]],
+        fill="toself",
+        fillcolor="rgba(255, 102, 204, 0.1)",
+        line=dict(color="rgba(255,102,204,1)", width=2),
+        mode="lines",
+        name="Лента кривизны"
+    ))
+
+    # Базовая кривая
+    fig.add_trace(go.Scatter(
+        x=x, y=y,
+        mode="lines",
+        line=dict(color="black", width=2),
+        name="Кривая"
+    ))
+
+    # Контур смещённой оболочки
+    fig.add_trace(go.Scatter(
+        x=x_off, y=y_off,
+        mode="lines",
+        line=dict(color="rgba(255,102,204,1)", width=2),
+        name="Смещённый контур"
+    ))
+
+    # Рёбра (нормали)
+    step = 5  # шаг по индексам для прореживания
+    for i in range(step, len(x) - step, step):
+        fig.add_trace(go.Scatter(
+            x=[x[i], x_off[i]],
+            y=[y[i], y_off[i]],
+            mode="lines",
+            line=dict(color="rgba(255,102,204,1)", width=1),
+            showlegend=False
+        ))
+
+    # # Исходные точки
+    # fig.add_trace(go.Scatter(
+    #     x=x_pts, y=y_pts,
+    #     mode="markers",
+    #     marker=dict(size=8, color="red"),
+    #     name="Исходные точки"
+    # ))
+
+    # Настройки графика
+    fig.update_layout(
+        title="Кривая с заливкой по кривизне и нормалями",
+        xaxis=dict(scaleanchor="y", showgrid=False, zeroline=False),
+        yaxis=dict(showgrid=False, zeroline=False),
+        plot_bgcolor="white",
+        showlegend=True
+    )
+
+    fig.show()
+
+
+
 
 

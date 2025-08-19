@@ -1,4 +1,5 @@
 import json
+import os.path
 import time
 
 from flask import render_template
@@ -24,7 +25,10 @@ from utils import (
     find_near_point,
     order_points,
     check_dir,
+    display_curve_with_curvatire
 )
+
+from constants import MATERIALS_PATH
 
 
 class Calculate(_Controller):
@@ -43,7 +47,7 @@ class Calculate(_Controller):
 
         general_l_imput = float(self.request_data.get('general_l'))
         general_l = general_l_imput or 15
-        L = 20
+        L = 50
         d_4 = L**4
 
         parts = interval
@@ -332,16 +336,23 @@ class Calculate(_Controller):
                                 "lines", "Моменти", "#FF00FF", {}, True
                             ],
                         ],
-                        save_path=f"./../plots_storage/static/plots/smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name}/d_{general_l}/{puzzle_index}/{side}/{direction}/",
+                        save_path=f"{MATERIALS_PATH}smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{side}/{direction}/",
                         filename = "moments"
                     )
 
-                    if straight:
-                        file_path = f"./processed_pazzle_data/{general_l}/puzzle/straight/{file_name}_{side + 1}_data.txt"
-                        file_path_contur = f"./processed_pazzle_data/{general_l}/conturs/straight/{file_name}_{side + 1}_data.txt"
-                    else:
-                        file_path = f"./processed_pazzle_data/{general_l}/puzzle/reverse/{file_name}_{side + 1}_data.txt"
-                        file_path_contur = f"./processed_pazzle_data/{general_l}/conturs/reverse/{file_name}_{side + 1}_data.txt"
+                    display_curve_with_curvatire(M_j_coreg[:, ::40], c_n_norm, d_n_norm, D_j_coreg[:, ::40])
+
+                    save_res_path = f"{MATERIALS_PATH}smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name.rsplit('_', 1)[0]}/type/d_{general_l}/{direction}/"
+
+                    file_path = os.path.join(save_res_path.replace("type", "moments"), f"{file_name}_{side + 1}_data.txt")
+                    file_path_contur = os.path.join(save_res_path.replace("type", "contours"), f"{file_name}_{side + 1}_data.txt")
+
+                    # if straight:
+                    #     file_path = f"./processed_pazzle_data/{general_l}/puzzle/straight/{file_name}_{side + 1}_data.txt"
+                    #     file_path_contur = f"./processed_pazzle_data/{general_l}/conturs/straight/{file_name}_{side + 1}_data.txt"
+                    # else:
+                    #     file_path = f"./processed_pazzle_data/{general_l}/puzzle/reverse/{file_name}_{side + 1}_data.txt"
+                    #     file_path_contur = f"./processed_pazzle_data/{general_l}/conturs/reverse/{file_name}_{side + 1}_data.txt"
 
                     if not new_coef_method:
                         file_path = file_path.replace("processed_pazzle_data", f"processed_pazzle_data_old_method")
@@ -505,7 +516,7 @@ class Calculate(_Controller):
                                 [[x_with_skipped, y_with_skipped], "markers", "Bace new points", "#C2A4FF", {}, True],
                             ],
                             equal=True,
-                            save_path=f"./../plots_storage/static/plots/smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name}/d_{general_l}/{puzzle_index}/{side}/{direction}/",
+                            save_path=f"{MATERIALS_PATH}smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{side}/{direction}/",
                             filename="after_1_iter_find_skipped"
                         )
 
@@ -538,7 +549,7 @@ class Calculate(_Controller):
                                 [old_positions.T if 0 not in old_positions.T.shape else [[], []], "markers", "Pont old position", "#D08D00", {}, True],
                             ],
                             equal=True,
-                            save_path=f"./../plots_storage/static/plots/smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name}/d_{general_l}/{puzzle_index}/{side}/{direction}/",
+                            save_path=f"{MATERIALS_PATH}smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{side}/{direction}/",
                             filename="after_1_iter_find_new_near_points"
                         )
 
@@ -559,7 +570,7 @@ class Calculate(_Controller):
                                 [[x, y], "markers", "Bace new points", "#C2A4FF", {}, True],
                             ],
                             equal=True,
-                            save_path=f"./../plots_storage/static/plots/smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name}/d_{general_l}/{puzzle_index}/{side}/{direction}/",
+                            save_path=f"{MATERIALS_PATH}smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{side}/{direction}/",
                             filename="after_1_iter_after_ordering"
                         )
 
@@ -569,7 +580,7 @@ class Calculate(_Controller):
                     parts = 40
                     list_of_patrs = [i / parts for i in range(1, parts)]
 
-                    L = L / 2
+                    L = L / 1.6
                     d_4 = L ** 4
 
                 else:
@@ -636,7 +647,7 @@ class Calculate(_Controller):
                                 ], "lines", "New iter", "#015AC8", {}, True],
                             ],
                             equal=True,
-                            save_path=f"./../plots_storage/static/plots/smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name}/d_{general_l}/{puzzle_index}/{side}/{direction}/",
+                            save_path=f"{MATERIALS_PATH}smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{side}/{direction}/",
                             filename=f"after_{iteration+1}_iter_find_new_near_points",
                         )
 
@@ -675,18 +686,18 @@ class Calculate(_Controller):
                                 ], "lines", "New iter", "#015AC8", {}, True],
                             ],
                             equal=True,
-                            save_path=f"./../plots_storage/static/plots/smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name}/d_{general_l}/{puzzle_index}/{side}/{direction}/",
+                            save_path=f"{MATERIALS_PATH}smooth_contour{'_old_method' if not new_coef_method else ''}/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{side}/{direction}/",
                             filename=f"after_{iteration+1}_iter_find_missing_spring",
-                            background_image = f"/Users/dmyrto_koltsov/PycharmProjects/PDF/my_data/{file_name}.jpg"
+                            background_image = f"{MATERIALS_PATH}input_data/{file_name.rsplit('_', 1)[0]}/{file_name.rsplit('_', 1)[0]}_{((int(file_name.rsplit('_', 1)[1]) - 1) // 9) + 1}.jpg"
                         )
 
                     order_points_n_time = time.time()
                     print(f"Время выполнения (general_n_time): {order_points_n_time - start_n_iteration:.4f} секунд")
 
-                    if L / 2 < general_l:
+                    if L / 1.6 < general_l:
                         L = general_l
                     else:
-                        L = L / 2
+                        L = L / 1.6
 
                     d_4 = L ** 4
 

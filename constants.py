@@ -59,3 +59,5 @@ POINTS_TYPE = {
     1: "fixed",
     2: "Imagine"
 }
+
+MATERIALS_PATH = "/Users/dmyrto_koltsov/Documents/diploma_materials/"
