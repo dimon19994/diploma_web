@@ -230,6 +230,13 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
                     matrix[i*8+7, i*8+7] = 0
                     matrix[i*8+7, (i+1)*8+3] = 0
                     matrix[i*8+7, i*8+4] = 1
+                elif point_type[i] == 2:
+                    pass  # Imagine points
+                elif point_type[i] == 3:
+                    matrix[i*8+5, i*8+5] = 0
+                    matrix[i*8+5, (i+1)*8+1] = 0
+                    matrix[i*8+5, i*8+6] = 1
+
 
             else:
                 matrix[i*8+4, i*8+4], matrix[i*8+5, i*8+5], matrix[i*8+6, i*8+6], matrix[i*8+7, i*8+7] = 1, 1, 1, 1
@@ -240,9 +247,19 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
                     matrix[i*8+7, i*8+7] = 0
                     matrix[i*8+7, 3] = 0
                     matrix[i*8+7, i*8+4] = 1
+                elif point_type[i] == 2:
+                    pass  # Imagine points
+                elif point_type[i] == 3:
+                    matrix[i*8+5, i*8+5] = 0
+                    matrix[i*8+5, 1] = 0
+                    matrix[i*8+5, i*8+7] = 1
 
 
-            coefs[i*8+5] = psis[i]
+            if point_type[i] in [0, 1, 2]:
+                coefs[i*8+5] = psis[i]
+            if point_type[i] == 4:
+                print("ALOHA!!!")
+                coefs[i*8+5] = np.pi / 4
             if P_align_coef is not None and point_type[i] == 0:
                 coefs[i*8+7] = -C[i]*P_align_coef[i]
 
@@ -992,6 +1009,7 @@ def polygon_area(quad):
 
 def delete_near_points(arr, candidates, order):
     min_distance = 3500
+    # min_distance = 1
     selected = []
     for idx in sorted(candidates, key=lambda i: arr[i], reverse=order):  # сортируем по высоте
         if all(abs(idx - prev) >= min_distance for prev in selected):
@@ -1035,7 +1053,7 @@ def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_ind
     #         min_distance = dist
     #         start_index = i % 2
 
-    all_extrema = sorted(set(high_peaks + low_peaks))
+    all_extrema = np.array(sorted(set(high_peaks + low_peaks)))
     n = len(all_extrema)
     points = D_j_coreg[:, all_extrema].T
     valid_quads = []
@@ -1050,6 +1068,36 @@ def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_ind
     delete_indexes = set()
     [delete_indexes.update(i[0]) for i in valid_quads[:min(len(low_peaks), len(high_peaks)) // 2]]
     corner_points = np.delete(np.array(all_extrema), list(delete_indexes))
+
+    delete_indexes = list(delete_indexes)
+
+    display_plot_plotly(
+        [
+            [
+                D_j_coreg,
+                "lines", "Моменти", "#FF00FF", {}, True
+            ],
+            [
+                D_j_coreg[:, all_extrema[[*delete_indexes[0: 4], delete_indexes[0]]]],
+                "lines+markers", "Rect 1", "#FF0F00", {}, True
+            ],
+            [
+                D_j_coreg[:, all_extrema[[*delete_indexes[4: 8], delete_indexes[4]]]],
+                "lines+markers", "Rect 2", "#FF0F00", {}, True
+            ],
+            [
+                D_j_coreg[:, all_extrema[[*delete_indexes[8: 12], delete_indexes[8]]]],
+                "lines+markers", "Rect 3", "#FF0F00", {}, True
+            ],
+            [
+                D_j_coreg[:, all_extrema[[*delete_indexes[12: 16], delete_indexes[12]]]],
+                "lines+markers", "Rect 4", "#FF0F00", {}, True
+            ],
+        ],
+        save_path=f"{MATERIALS_PATH}smooth_contour/{filename.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{'straight' if direction else 'reverse'}/",
+        filename="rect_with_min_area",
+        equal=True
+    )
 
     display_plot_plotly(
         [
@@ -1070,10 +1118,7 @@ def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_ind
                 "markers", "Corners", "#FFCC00", {}, True
             ],
         ],
-        save_path=os.path.join(
-            MATERIALS_PATH,
-            f"smooth_contour/{filename.rsplit('_', 1)[0]}/corners/{puzzle_index}/"
-        ),
+        save_path=f"{MATERIALS_PATH}smooth_contour/{filename.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{'straight' if direction else 'reverse'}/",
         filename="corner_candidats_moments"
     )
 
