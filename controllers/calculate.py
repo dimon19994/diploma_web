@@ -99,7 +99,8 @@ class Calculate(_Controller):
                 C_ris *= C_step
                 C *= C_step
                 if curve_type == "loop":
-                    P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y)
+                    P_align_coef = None
+                    # P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y)
                 else:
                     P_align_coef = None
                 matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, P_align_coef=P_align_coef, extra_psis=psis_abs, aligns=aligns)
@@ -159,7 +160,7 @@ class Calculate(_Controller):
             spline_points = [[], []]
             imagine_points = [[], []]
             fixed_points = [[], []]
-            for i in range(file_dataset_len+1):
+            for i in range(file_dataset_len):
                 if point_type[i] == 0:
                     spline_points[0].append(x[i])
                     spline_points[1].append(y[i])
@@ -192,9 +193,6 @@ class Calculate(_Controller):
             plot = display_plot(points_data, labels=labels, color_line=colours,
                                 title="", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
 
-            # plot = display_plot([[M_j_coreg[0], M_j_coreg[1]]], labels = ['Моменти'], color_line = ['-m'],
-            #                     title="", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
-
             flike = BytesIO()
             plot.savefig(flike, format='png')
             flike.seek(0)
@@ -203,6 +201,17 @@ class Calculate(_Controller):
             flike.close()
 
             response_images.append(graph)
+
+            plot_moments = display_plot([[M_j_coreg[0], M_j_coreg[1]]], labels = ['Моменти'], color_line = ['-m'],
+                                title="", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
+            flike = BytesIO()
+            plot_moments.savefig(flike, format='png')
+            flike.seek(0)
+            image_png = flike.getvalue()
+            graph_moments = base64.b64encode(image_png).decode('utf-8')
+            flike.close()
+
+            response_images.append(graph_moments)
 
 
             # if curve_type != "loop" and iteration == 0:
@@ -214,19 +223,21 @@ class Calculate(_Controller):
             #         point_type = np.insert(point_type, 1, 2)
             #     file_dataset_len = (len(x) - 1)
 
-            if curve_type != "loop" and iteration <= 4 and (len(x) - len(x_base)) < 30:
-                for im in range(2, int(parts**0.5)+1):
+            if iteration <= 4 and (len(x) - len(x_base)) < 25:
+                for im in range(3, int(parts ** 0.5) + 1):
                     if parts % im == 0:
-                        im_points_count = im
+                        # im_points_count = im * 2
+                        im_points_count = 10
                         break
                 else:
                     im_points_count = parts
 
-                x = D_j_coreg[0, ::parts//im_points_count]
-                y = D_j_coreg[1, ::parts//im_points_count]
+                x = D_j_coreg[0, ::parts // im_points_count]
+                y = D_j_coreg[1, ::parts // im_points_count]
 
-                for i in range(len(x) - len(point_type)):
-                    point_type = np.insert(point_type, 1, 2)
+                for i in range(int((len(x) - len(point_type)) / (im_points_count - 1))):
+                    for j in range(im_points_count - 1):
+                        point_type = np.insert(point_type, im_points_count * i, 2)
 
                 file_dataset_len = (len(x) - 1)
 
