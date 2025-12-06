@@ -3,34 +3,19 @@ import time
 
 from flask import render_template
 import numpy as np
+from pandas.core.array_algos.transforms import shift
 
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import spsolve
+from sympy.geometry.entity import scale
 from werkzeug.debug.repr import missing
 import os
 
 from controllers import _Controller
-from utils import (
-    vector_cords,
-    vector_cords_not_loop,
-    align_value_count,
-    len_value_count,
-    C_coef_value_count,
-    P_coef_count,
-    matrix_coefs,
-    vector_normalization,
-    midle_point_params_vector,
-    midle_point_count,
-    new_position_count,
-    find_local_maxima,
-    find_local_minima,
-    display_plot_plotly,
-    find_near_point,
-    order_points,
-    get_corner_points_candidate,
-    check_dir,
-)
+from utils import *
 from constants import MATERIALS_PATH
+
+import sys
 
 
 class Calculate(_Controller):
@@ -56,8 +41,11 @@ class Calculate(_Controller):
 
         general_l_imput = float(self.request_data.get('general_l'))
         general_l = general_l_imput or 15
-        L = 50
+        start_L = 20
+        L = start_L
+        # L = 1
         d_4 = L**4
+        scale_coef = 1.3
 
         # parts = int(self.request_data.get('subitems', 50))
         parts = interval
@@ -80,6 +68,7 @@ class Calculate(_Controller):
         puzzle_and_direction = f"{self.request_data.get('puzzle_index')}_{'straight' if straight else 'reverse'}"
         puzzle_index = self.request_data.get('puzzle_index')
         direction = 'straight' if straight else 'reverse'
+        corner_move = int(self.request_data.get('corner_move', 0))
 
         # if iterations > 1:
         #     C_step = (C_end/C_start)**(1/(iterations-1))
@@ -112,11 +101,18 @@ class Calculate(_Controller):
             y = np.array(y)
 
         response_images = []
+        display_point_positions = []
+        display_corner_points_positions = []
+
+        # scale = 0.33
+        # scale = 0.5
+        scale = 1
+        real_corner_point = None
 
         SHOW_NEW_TYPE_PLOTS = True
 
         for iteration in range(iterations):
-            print(iteration)
+            print(f"{iteration=}, {L=}")
 
             start = time.time()
 
@@ -191,153 +187,65 @@ class Calculate(_Controller):
 
             # ---- current_task --------
             extra_psis = [solution[1], solution[-3]]
-            # if round(solution[1] - radians(30), 5) == 0 and radians(solution[-3] - radians(30)) == 0:
-            #     break
             # ---- current_task --------
 
 
-            # if display_solution_table:
-            #     display_table(np.transpose(solution.reshape(points_count, 8)), rows_name=["W_0", "θ_0", "M_0", "Q_0", "W_l", "θ_l", "M_l", "Q_l"], bad_data = False, revert=True)
-            a_norm, b_norm, c_l_norm, d_l_norm, c_n_norm, d_n_norm = vector_normalization(d, S_input, solution, curve_type)
+            a_norm, b_norm, c_l_norm, d_l_norm, c_n_norm, d_n_norm = vector_normalization(d, S_input, solution, curve_type, display_corner_points, psis)
+
+            x_norm_disp, y_norm_disp, x_norm_real_disp, y_norm_real_disp = get_norm_vectors(x, y, c_n_norm, d_n_norm, solution[::8], 10)
+
             sol_half = midle_point_params_vector(file_dataset_len, S_input, solution, list_of_patrs, psis)
-            B_j, c_n_norm_B_j, d_n_norm_B_j = midle_point_count(file_dataset_len, list_of_patrs, x, y, S_input, a_norm, b_norm, sol_half)
-            M_j, M_j_coreg, D_j, D_j_coreg = new_position_count(file_dataset_len, S_input, x, y, solution, c_l_norm, c_n_norm, c_n_norm_B_j, d_l_norm, d_n_norm, d_n_norm_B_j, sol_half, list_of_patrs, B_j, curve_type)
+            B_j, c_n_norm_B_j, d_n_norm_B_j = midle_point_count(file_dataset_len, list_of_patrs, x, y, S_input, a_norm, b_norm, sol_half, display_corner_points, solution, psis)
+            M_j, M_j_coreg, D_j, D_j_coreg = new_position_count(
+                file_dataset_len, S_input, x, y, solution, c_l_norm, c_n_norm, c_n_norm_B_j,
+                d_l_norm, d_n_norm, d_n_norm_B_j, sol_half, list_of_patrs, B_j, curve_type, display_corner_points,
+                scale=scale
+            )
 
-            # M_j[1] = M_j[1] * -1
-
-            # if iteration == 0:
-            #     x = D_j_coreg[0, ::parts]
-            #     y = D_j_coreg[1, ::parts]
-            # else:
-            #     x = D_j_coreg[0, ::parts]
-            #     y = D_j_coreg[1, ::parts]
+            display_plot_plotly(
+                [
+                    [
+                        [x, y],
+                        "lines+markers", "iteration input points", "black", {}, True
+                    ],
+                    [
+                        [x_norm_disp, y_norm_disp],
+                        "lines", "norm_vectors", "#D7101F", {}, False
+                    ],
+                    [
+                        [x_norm_real_disp, y_norm_real_disp],
+                        "lines", "norm_vectors_true_len", "blue", {}, True
+                    ],
+                    [
+                        [D_j_coreg[0], D_j_coreg[1]],
+                        "lines+markers", "З корегуванням", "green", {}, True
+                    ],
+                    [[
+                        x[display_corner_points.astype(int)],
+                        y[display_corner_points.astype(int)]
+                    ], "markers", "Imagine corners", "red", {"marker": {"size": 10}}, True],
+                ],
+                equal=True,
+                save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
+                filename=f"after_{iteration+1}_new_points"
+            )
 
             coreg_time = time.time()
             print(f"Время выполнения (coreg_time): {coreg_time - solution_time:.4f} секунд")
 
-            if iteration == (iterations - 1):
-                if save_data:
-                    # if straight:
-                    #     # display_plot_plotly(
-                    #     #     [
-                    #     #         [
-                    #     #             [M_j[0], M_j[1]],
-                    #     #             "lines", "Моменти", "#FF00FF", {}, True
-                    #     #         ],
-                    #     #     ],
-                    #     #     filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{direction}/pre_moments"
-                    #     # )
-                    #     # minima_indices = find_local_minima(M_j[1])
-                    #     # top_12_indices = minima_indices[np.argsort(M_j[1][minima_indices])]
-                    #     # # top_8_indices = minima_indices[np.argsort(M_j[1][minima_indices])[:4]]
-                    #     # # [554 210 407 778]
-                    #     #
-                    #     # points_top = np.vstack((D_j_coreg[0][top_12_indices], D_j_coreg[1][top_12_indices])).transpose()
-                    #     # corner_points = find_max_area_quadrilateral(points_top)
-                    #     #
-                    #     # indexes = [i for i in range(len(top_12_indices)) if points_top[i] in corner_points]
-                    #     # top_4_indices = top_12_indices[indexes]
-                    #
-                    #     minima_indices = find_local_minima(M_j[1])
-                    #     top_4_indices = np.array([
-                    #         minima_indices[np.argmin(np.abs(minima_indices - val))]
-                    #         for val in top_4_candidates
-                    #     ])
-                    #     top_4_indices.sort()
-                    #
-                    #     max_side_index = np.argmax(D_j_coreg[1])
-                    #     for i in range(len(top_4_indices)):
-                    #         if max_side_index < top_4_indices[i]:
-                    #             top_4_indices = np.roll(top_4_indices, len(top_4_indices) - i)
-                    #             break
-                    #
-                    #     # plot = display_plot([points_top.transpose(),
-                    #     #                      np.vstack((D_j_coreg[0][top_4_indices], D_j_coreg[1][top_4_indices])), [x, y]],
-                    #     #                     labels=['top 8', "top 4", "all"],
-                    #     #                     color_line=['og', '-oy', "-m"],
-                    #     #                     title="", annotate_step=[1, 1, 100], points_count=8)
-                    #     # plot.show()
-                    #
-                    #     display_plot_plotly(
-                    #         [
-                    #             [
-                    #                 np.vstack((D_j_coreg[0][top_4_indices], D_j_coreg[1][top_4_indices])),
-                    #                 "lines+markers", "top 4", "#FF4500", {}, True
-                    #             ],
-                    #             [
-                    #                 D_j_coreg,
-                    #                 "lines", "all", "#054907", {}, True
-                    #             ],
-                    #         ],
-                    #         equal=True,
-                    #         save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
-                    #         filename="top_points_on_contur"
-                    #     )
-                    #
-                    #
-                    #     display_corner_points = M_j[:, top_4_indices][:2]
-                    # else:
-                    #     # display_plot_plotly(
-                    #     #     [
-                    #     #         [
-                    #     #             [M_j[0], M_j[1]],
-                    #     #             "lines", "Моменти", "#FF00FF", {}, True
-                    #     #         ],
-                    #     #     ],
-                    #     #     filename=f"smooth_contour/d_{general_l}/{puzzle_index}/{direction}/pre_moments"
-                    #     # )
-                    #     # with open("jpt_file.csv", "w") as f:
-                    #     #     for indddd in range(len(D_j_coreg[0])):
-                    #     #         f.write(f"{D_j_coreg[0][indddd]},{D_j_coreg[1][indddd]},{M_j[1][indddd]}\n")
-                    #     #
-                    #     # maxima_indices = find_local_maxima(M_j[1])
-                    #     # top_12_indices = maxima_indices[np.argsort(M_j[1][maxima_indices])][::-1]
-                    #     # # top_8_indices = maxima_indices[np.argsort(M_j[1][maxima_indices])[-4:]]
-                    #     #
-                    #     # points_top = np.vstack((D_j_coreg[0][top_12_indices], D_j_coreg[1][top_12_indices])).transpose()
-                    #     # corner_points = find_max_area_quadrilateral(points_top)
-                    #     #
-                    #     # indexes = [i for i in range(len(top_12_indices)) if points_top[i] in corner_points]
-                    #     # top_4_indices = top_12_indices[indexes]
-                    #
-                    #     maxima_indices = find_local_maxima(M_j[1])
-                    #     top_4_indices = np.array([
-                    #         maxima_indices[np.argmin(np.abs(maxima_indices - val))]
-                    #         for val in top_4_candidates
-                    #     ])
-                    #     top_4_indices.sort()
-                    #
-                    #     max_side_index = np.argmax(D_j_coreg[1])
-                    #     for i in range(len(top_4_indices)):
-                    #         if max_side_index < top_4_indices[i]:
-                    #             top_4_indices = np.roll(top_4_indices, len(top_4_indices) - i)
-                    #             break
-                    #
-                    #     # plot = display_plot([points_top.transpose(),
-                    #     #                      np.vstack((D_j_coreg[0][top_4_indices], D_j_coreg[1][top_4_indices])), [x, y]],
-                    #     #                     labels=['top 8', "top 4", "all"],
-                    #     #                     color_line=['og', '-oy', "-m"],
-                    #     #                     title="", annotate_step=[1, 1, 100], points_count=8)
-                    #     # plot.show()
-                    #
-                    #     display_plot_plotly(
-                    #         [
-                    #             [
-                    #                 np.vstack((D_j_coreg[0][top_4_indices], D_j_coreg[1][top_4_indices])),
-                    #                 "lines+markers", "top 4", "#FF4500", {}, True
-                    #             ],
-                    #             [
-                    #                 D_j_coreg,
-                     #                 "lines", "all", "#054907", {}, True
-                    #             ],
-                    #         ],
-                    #         equal=True,
-                    #         save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
-                    #         filename="top_points_on_contur"
-                    #     )
-                    #
-                    #     display_corner_points = M_j[:, top_4_indices][:2]
+            if iteration == (iterations - 1) or iteration == 3 or iteration == 9 or iteration == 15:
+                qulity = 0
+                m_j_dif = np.array([*[M_j[0][i + 1] - M_j[0][i] for i in range(M_j.shape[1] - 1)], M_j[0][-1] - M_j[0][-2]])
+                M_j = np.vstack((M_j, m_j_dif))
+                for i in range(len(M_j[1])):
+                    qulity += M_j[1][i]**2*M_j[2][i]
 
+                print("Якість", qulity)
+                print("Довжина", M_j[0][-1])
+
+                top_4_candidates = get_corner_points_candidate(M_j, D_j_coreg, straight, general_l, puzzle_index, file_name, full=True) // 40
+
+                if save_data:
                     display_plot_plotly(
                         [
                             [
@@ -348,64 +256,96 @@ class Calculate(_Controller):
                                 M_j[:, display_corner_points.astype(int) * 40],
                                 "markers", "Кутові точки", "#000000", {}, True
                             ],
+                            [
+                                M_j[:, top_4_candidates * 40],
+                                "markers+text", "Локальні екстремуми", "brown", {"marker": {"size": 10}, "textposition": "middle right"}, True
+                            ],
                         ],
                         save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
-                        filename="moments"
+                        filename=f"moments_{iteration+1}{('_'+str(corner_move)) if iteration == (iterations - 1) else ''}",
                     )
 
-                    # for i in range(len(top_4_indices)):
-                    #     if straight:
-                    #         file_path = f"./processed_pazzle_data/{general_l}/puzzle/straight/{file_name}_{i + 1}_data.txt"
-                    #         file_path_contur = f"./processed_pazzle_data/{general_l}/conturs/straight/{file_name}_{i + 1}_data.txt"
-                    #     else:
-                    #         file_path = f"./processed_pazzle_data/{general_l}/puzzle/reverse/{file_name}_{i + 1}_data.txt"
-                    #         file_path_contur = f"./processed_pazzle_data/{general_l}/conturs/reverse/{file_name}_{i + 1}_data.txt"
-                    #
-                    #     check_dir(file_path)
-                    #     check_dir(file_path_contur)
-                    #
-                    #     with open(file_path, "w") as f:
-                    #         if top_4_indices[i] < top_4_indices[i - 1]:
-                    #             p1 = np.vstack((M_j[0, top_4_indices[i - 1]:] - M_j[0][top_4_indices[i - 1]], M_j[1, top_4_indices[i - 1]:]))
-                    #             p2 = np.vstack((M_j[0, :top_4_indices[i]] + p1[0][-1], M_j[1, :top_4_indices[i]]))[:, 1:]
-                    #             ddd = np.hstack((p1, p2))
-                    #         else:
-                    #             ddd = np.vstack((M_j[0, top_4_indices[i - 1]:top_4_indices[i]] - M_j[0][top_4_indices[i - 1]],
-                    #                              M_j[1, top_4_indices[i - 1]:top_4_indices[i]]))
-                    #
-                    #         f.write("\n".join([f"{i[0]} {i[1]}" for i in ddd.transpose()]))
-                    #
-                    #     with open(file_path_contur, "w") as f:
-                    #         if top_4_indices[i] < top_4_indices[i - 1]:
-                    #             p1 = np.vstack((D_j_coreg[0][top_4_indices[i - 1]:], D_j_coreg[1][top_4_indices[i - 1]:]))
-                    #             p2 = np.vstack((D_j_coreg[0][:top_4_indices[i]], D_j_coreg[1][:top_4_indices[i]]))[:, 1:]
-                    #             ddd = np.hstack((p1, p2))
-                    #         else:
-                    #             ddd = np.vstack((D_j_coreg[0][top_4_indices[i - 1]:top_4_indices[i]],
-                    #                              D_j_coreg[1][top_4_indices[i - 1]:top_4_indices[i]]))
-                    #
-                    #         f.write("\n".join([f"{i[0]} {i[1]}" for i in ddd.transpose()]))
+                pics_force = []
+                force_indexes = []
 
-                    # with open(f"{file_name}_data.txt", "w") as f:
-                    #     for i in np.transpose(D_j):
-                    #         f.write(f"{i[0]} {i[1]}\n")
-                    #
-                    # # моменты
-                    # M_x = M_j[0]
-                    # M_y = M_j[1]
-                    # with open(f"{file_name}_moments.txt", "w") as f:
-                    #     for i in range(len(M_y)):
-                    #         f.write(f"{M_x[i]} {M_y[i]}\n")
+                "\n".join(
+                    [
+                        " ".join(x_base[827:837].astype(str).tolist()),
+                        " ".join(y_base[827:837].astype(str).tolist()),
+                        " ".join(x[827:837].astype(str).tolist()),
+                        " ".join(y[827:837].astype(str).tolist()),
+                    ]
+                ).replace(".", ",")
 
-                qulity = 0
-                m_j_dif = np.array([*[M_j[0][i + 1] - M_j[0][i] for i in range(M_j.shape[1] - 1)], M_j[0][-1] - M_j[0][-2]])
-                M_j = np.vstack((M_j, m_j_dif))
-                for i in range(len(M_j[1])):
-                    qulity += M_j[1][i]**2*M_j[2][i]
+                top_4_candidates = np.append(top_4_candidates, 99)
 
-                print("Якість", qulity)
-                print("Довжина", M_j[0][-1])
-                continue
+                for tp in top_4_candidates:
+                    pic_force, left, right = find_force(tp, P_align_coef, C, S_input, L * 3 / 4)
+
+                    force_indexes.extend([zu % len(C)  for zu in range(left, right + 1)])
+                    force_indexes.append(None)
+
+                    pics_force.append(pic_force)
+                    print(f"index = {tp + 1}, Робота = {pics_force[-1]:.5f}")
+
+                if SHOW_NEW_TYPE_PLOTS:
+                    display_plot_plotly(
+                        [
+                            [[
+                                np.array([[x_base[q], D_j_coreg[0][q * 40], None] for q in range(len(x))]).flatten(),
+                                np.array([[y_base[q], D_j_coreg[1][q * 40], None] for q in range(len(y))]).flatten()
+                            ], "lines", "Springs", "#D7101F", {"line": {"width": 2, "dash": 'dash'}}, True],
+                            [[
+                                x_base,
+                                y_base,
+                            ], "lines+markers", "Input", "#D08D00", {}, True],
+                            [[
+                                D_j_coreg[0],
+                                D_j_coreg[1]
+                            ], "lines+markers", "New iter", "#015AC8", {}, True],
+                            [[
+                                D_j_coreg[0],
+                                D_j_coreg[1]
+                            ], "lines", "New iter", "#015AC8", {}, True],
+                            # [[
+                            #     D_j_coreg[0, ::parts][force_indexes],
+                            #     D_j_coreg[1, ::parts][force_indexes]
+                            # ], "lines", "Force_compare_pints", "green", {}, True],
+                            [[
+                                np.array([x_base[iiii] if iiii is not None else None for iiii in force_indexes]),
+                                np.array([y_base[iiii] if iiii is not None else None for iiii in force_indexes])
+                            ], "lines+markers", "Force compare pints", "green", {}, True],
+                            [[
+                                x_base[top_4_candidates],
+                                y_base[top_4_candidates],
+                            ], "markers", "Corner pints", "purple", {"marker": {"size": 10}}, True],
+                        ],
+                        equal=True,
+                        save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
+                        filename=f"after_{iteration + 1}_iter_force_points{('_'+str(corner_move)) if iteration == (iterations - 1) else ''}",
+                    )
+
+                if len(display_corner_points) > 0:
+                    print(display_corner_points, real_corner_point)
+                    for lll in display_corner_points:
+                        force, _, _ = find_force(lll, P_align_coef, C, S_input, start_L * 3 / 4, imagine=True)
+                        print("Korner Робота", force)
+
+                    if real_corner_point:
+                        vallll = int(real_corner_point)
+                        # force = sum(
+                        #     np.array(P_align_coef)[vallll - 20: vallll + 21] ** 2 * C[vallll - 20: vallll + 21]) - \
+                        #         P_align_coef[vallll] ** 2 * C[vallll]
+
+                        force, _, _ = find_force(vallll, P_align_coef, C, S_input, start_L * 3 / 4, imagine=True)
+                        print("Real Робота", force)
+
+                    force_full = sum(np.array(P_align_coef) ** 2 * C) - sum(np.array(P_align_coef)[display_corner_points] ** 2 * C[display_corner_points])
+                    print("Робота повна", force_full)
+                    print("Кути", psis[display_corner_points - 1])
+
+
+                    continue
 
 
             if curve_type == "loop":  # and iteration == 0:
@@ -508,18 +448,7 @@ class Calculate(_Controller):
                             filename="after_1_iter_find_new_near_points"
                         )
 
-                    x, y, x_base, y_base = order_points(D_j_coreg[0], D_j_coreg[1], x_near, y_near, x_base, y_base)
-
-                    # for i, point in enumerate(corners):
-                    #     x = np.insert(x, int(point + i), (x[int(point + i - 1)] + x[int(point + i)]) / 2)
-                    #     y = np.insert(y, int(point + i), (y[int(point + i - 1)] + y[int(point + i)]) / 2)
-                    #     x_base = np.insert(x_base, int(point + i), (x_base[int(point + i - 1)] + x_base[int(point + i)]) / 2)
-                    #     y_base = np.insert(y_base, int(point + i), (y_base[int(point + i - 1)] + y_base[int(point + i)]) / 2)
-                    #     point_type = np.insert(point_type, int(point + i), 3)
-                    #
-                    # display_corner_points = np.array([cor + i + 1 for i, cor in enumerate(corners)])
-                    #
-                    # print(display_corner_points)
+                    x, y, x_base, y_base, _, _ = order_points(D_j_coreg[0], D_j_coreg[1], x_near, y_near, x_base, y_base)
 
                     if SHOW_NEW_TYPE_PLOTS:
                         display_plot_plotly(
@@ -546,8 +475,8 @@ class Calculate(_Controller):
                     parts = 40
                     list_of_patrs = [i / parts for i in range(1, parts)]
 
-                    L = L / 2
-                    d_4 = L ** 4
+                    # L = L / scale_coef
+                    # d_4 = L ** 4
 
                 else:
                     start_n_iteration = time.time()
@@ -558,11 +487,23 @@ class Calculate(_Controller):
                     x = D_j_coreg[0, ::parts]
                     y = D_j_coreg[1, ::parts]
 
-                    find_near_point_start = time.time()
-                    x, y, indexes, old_positions, new_positions = find_near_point(x_base, y_base, x, y, D_j_coreg)
-                    find_near_point_end = time.time()
-                    print(f"Время выполнения (find_near_point_end): {find_near_point_end - find_near_point_start:.4f} секунд")
+                    D_j_coreg_without_corners = np.copy(D_j_coreg)
 
+                    if len(display_corner_points) > 0:
+                        x, y, D_j_coreg_without_corners, x_base, y_base, point_type, display_corner_points_positions = delete_corner_points(x, y, x_base, y_base, D_j_coreg.T, point_type, display_corner_points)
+
+                        if SHOW_NEW_TYPE_PLOTS:
+                            display_plot_plotly(
+                                [
+                                    [D_j_coreg_without_corners, "lines+markers", "New iter", "#015AC8", {}, True],
+                                ],
+                                equal=True,
+                                save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
+                                filename=f"after_{iteration + 1}_without_imagine_points",
+                            )
+
+                    find_near_point_start = time.time()
+                    x, y, indexes, old_positions, new_positions = find_near_point(x_base, y_base, x, y, D_j_coreg_without_corners)
 
                     if SHOW_NEW_TYPE_PLOTS:
                         display_plot_plotly(
@@ -592,16 +533,106 @@ class Calculate(_Controller):
                                     x,
                                     y
                                 ], "lines", "New iter", "#015AC8", {}, True],
+                                [
+                                    D_j_coreg_without_corners, "lines+markers", "D_j_coreg", "pink", {}, True
+                                ],
                             ],
                             equal=True,
                             save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
                             filename=f"after_{iteration+1}_iter_find_new_near_points",
                         )
 
+                    find_near_point_end = time.time()
+                    print(f"Время выполнения (find_near_point_end): {find_near_point_end - find_near_point_start:.4f} секунд")
+
+
+                    # x, y, x_base, y_base, point_type, display_corner_points = near_find_check(x, y, D_j_coreg[0], D_j_coreg[1], x_base, y_base, point_type, display_corner_points)
+                    # if SHOW_NEW_TYPE_PLOTS:
+                    #     display_plot_plotly(
+                    #         [
+                    #             [[
+                    #                 np.array([[x_base[q], x[q], None] for q in range(len(x))]).flatten(),
+                    #                 np.array([[y_base[q], y[q], None] for q in range(len(y))]).flatten()
+                    #             ], "lines", "Springs", "#D7101F", {"line": {"width": 2, "dash": 'dash'}}, True],
+                    #
+                    #             [[
+                    #                 x_ooold,
+                    #                 y_ooold
+                    #             ], "lines+markers", "Prew iter", "#349950", {"line": {"width": 3}}, True],
+                    #             [[
+                    #                 x_base,
+                    #                 y_base,
+                    #             ], "lines+markers", "Input", "#D08D00", {}, True],
+                    #             [[
+                    #                 x_base,
+                    #                 y_base,
+                    #             ], "lines", "Input", "#D08D00", {}, True],
+                    #             [[
+                    #                 x,
+                    #                 y
+                    #             ], "lines+markers", "New iter", "#015AC8", {}, True],
+                    #             [[
+                    #                 x,
+                    #                 y
+                    #             ], "lines", "New iter", "#015AC8", {}, True],
+                    #             [
+                    #                 D_j_coreg, "lines+markers", "D_j_coreg", "pink", {}, True
+                    #             ],
+                    #         ],
+                    #         equal=True,
+                    #         save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
+                    #         filename=f"after_{iteration+1}_iter_find_new_near_points_after_corner_fix",
+                    #     )
+
+
+                    # if len(display_corner_points):
+                    #     display_point_positions = np.vstack((x[display_corner_points - 1], y[display_corner_points - 1])).T
+                    #     for cp in display_corner_points[::-1]:
+                    #         x = np.delete(x, cp)
+                    #         y = np.delete(y, cp)
+                    #         x_base = np.delete(x_base, cp)
+                    #         y_base = np.delete(y_base, cp)
+                    #         point_type = np.delete(point_type, cp)
+
                     order_points_start = time.time()
-                    x, y, x_base, y_base = order_points(D_j_coreg[0], D_j_coreg[1], x, y, x_base, y_base)
+                    x, y, x_base, y_base, remove_pints, new_points = order_points(D_j_coreg_without_corners[0], D_j_coreg_without_corners[1], x, y, x_base, y_base)
+
+                    if len(remove_pints) > 0:
+                        for ze in range(len(remove_pints)):
+                            additional_move = 1
+                            print("add move:", additional_move)
+
+                            x_base = np.delete(x_base, remove_pints[ze])
+                            x_base = insert_corner_points(x_base, new_points[ze] - additional_move)
+
+                            y_base = np.delete(y_base, remove_pints[ze])
+                            y_base = insert_corner_points(y_base, new_points[ze] - additional_move)
+
+                            point_type = np.delete(point_type, remove_pints[ze])
+                            point_type = insert_corner_points(point_type, new_points[ze] - additional_move, 3)
+
+                            inndddd = np.where(display_corner_points == remove_pints[ze])[0][0]
+                            display_corner_points[inndddd] = new_points[ze]
+
+                    if len(display_corner_points) > 0:
+                        x, y, x_base, y_base, point_type, display_corner_points = insert_new_corner_points(D_j_coreg[0], D_j_coreg[1], x, y, x_base, y_base, point_type, display_corner_points_positions)
+
                     order_points_end = time.time()
                     print(f"Время выполнения (order_points): {order_points_end - order_points_start:.4f} секунд")
+
+                    if len(display_point_positions):
+                        new_display_corner_points = np.array([ind for ind, ppp in enumerate(np.vstack((x, y)).T) if ppp in display_point_positions])
+                        print(f"{display_corner_points=}, {new_display_corner_points=}")
+
+                        display_corner_points = new_display_corner_points
+
+                        for i, point in enumerate(display_corner_points[::-1]):
+                            x = insert_corner_points(x, int(point))
+                            y = insert_corner_points(y, int(point))
+                            x_base = insert_corner_points(x_base, int(point))
+                            y_base = insert_corner_points(y_base, int(point))
+
+                            point_type = insert_corner_points(point_type, int(point) - 1, 3)
 
                     if SHOW_NEW_TYPE_PLOTS:
                         display_plot_plotly(
@@ -645,10 +676,8 @@ class Calculate(_Controller):
                     order_points_n_time = time.time()
                     print(f"Время выполнения (general_n_time): {order_points_n_time - start_n_iteration:.4f} секунд")
 
-                    if iteration == 1:
+                    if iteration == 15:
                         top_4_candidates = get_corner_points_candidate(M_j, D_j_coreg, straight, general_l, puzzle_index, file_name)
-                        # with open("top_4_candidates.txt", "a") as f:
-                        #     f.write(" ".join([str(int(i/40)) for i in top_4_candidates]) + "\n")
 
                         display_plot_plotly(
                             [
@@ -666,24 +695,35 @@ class Calculate(_Controller):
                             filename="top_points_candidats_on_contur"
                         )
 
-                        # display_corner_points = np.array([cor + i + 1 for i, cor in enumerate(top_4_candidates)])
                         top_4_candidates = top_4_candidates / 40
                         print(f"{top_4_candidates=}")
 
-                        # for i, point in enumerate(top_4_candidates):
-                        #     x = np.insert(x, int(point + i - 1), (x[int(point + i - 2)] + x[int(point + i - 1)]) / 2)
-                        #     y = np.insert(y, int(point + i - 1), (y[int(point + i - 2)] + y[int(point + i - 1)]) / 2)
-                        #     x_base = np.insert(x_base, int(point + i - 1), (x_base[int(point + i - 2)] + x_base[int(point + i - 1)]) / 2)
-                        #     y_base = np.insert(y_base, int(point + i - 1), (y_base[int(point + i - 2)] + y_base[int(point + i - 1)]) / 2)
-                        #     if point == 0:
-                        #         point_type = np.append(point_type, 3)
-                        #     else:
-                        #         point_type = np.insert(point_type, int(point + i - 1), 3)
+                        if (len(x) - 1) in top_4_candidates:
+                            top_4_candidates = np.delete(top_4_candidates, 3)
+                            top_4_candidates = np.insert(top_4_candidates, 0, 0)
 
-                        display_corner_points = np.array([cor + i - 1 for i, cor in enumerate(top_4_candidates)])
-                        minus_index = np.where(display_corner_points == -1)[0]
-                        if len(minus_index) > 0:
-                            display_corner_points[minus_index[0]] = len(x_base) - 2
+                        # if "test_data" in file_name:
+                        if "test_data" in file_name or "all_good" in file_name:
+                            real_corner_point = top_4_candidates[1] + 2
+                            top_4_candidates[1] = top_4_candidates[1] + corner_move
+
+                        for i, point in enumerate(top_4_candidates[::-1]):
+                            x = insert_corner_points(x, int(point))
+                            y = insert_corner_points(y, int(point))
+                            x_base = insert_corner_points(x_base, int(point))
+                            y_base = insert_corner_points(y_base, int(point))
+
+                            point_type = insert_corner_points(point_type, int(point) - 1, 3)
+
+                        display_corner_points = np.where(point_type == 3)[0]
+
+                        display_corner_points = display_corner_points + 1
+
+
+                        # display_corner_points = np.array([cor + i - 1 for i, cor in enumerate(top_4_candidates)])
+                        # minus_index = np.where(display_corner_points == -1)[0]
+                        # if len(minus_index) > 0:
+                        #     display_corner_points[minus_index[0]] = len(x_base) - 2
                         print(f"{display_corner_points=}")
 
                         if SHOW_NEW_TYPE_PLOTS:
@@ -712,39 +752,27 @@ class Calculate(_Controller):
                                 # background_image = f"/Users/dmyrto_koltsov/PycharmProjects/PDF/my_data/{file_name}.jpg"
                             )
 
-                    if iteration > 2:
-                        if L / 2 < general_l:
-                            L = general_l
+                    if iteration > 0:
+                        if iteration in [1, 2, 12, 13, 14, 15]:
+                            pass
+                        elif iteration < 5  or (iteration > 8 and iteration < 12):
+                            L = L / scale_coef
                         else:
-                            L = L / 2
+                            L = general_l
 
                         d_4 = L ** 4
 
 
-                # for im in range(2, int(parts**0.5)+1):
-                #     if parts % im == 0:
-                #         im_points_count = im
-                #         break
-                # else:
-                #     im_points_count = parts
-                #
-                # x = D_j_coreg[0, ::parts//im_points_count]
-                # y = D_j_coreg[1, ::parts//im_points_count]
-                #
-                # for i in range(len(x) - len(point_type)):
-                #     point_type = np.insert(point_type, 1, 2)
+                        # if L / scale_coef < general_l and iteration > 4:
+                        #     L = general_l
+                        # else:
+                        #     L = L / scale_coef
+                        #
+                        # d_4 = L ** 4
 
-                # point_type = np.zeros(shape=(len(x)))
                 file_dataset_len = len(x_base) - 1
-                # parts = 0
-                # list_of_patrs = []
             else:
                 pass
-                # display_plot_plotly([
-                #     [[x[1337:1345], y[1337:1345]], "lines", "input"],
-                #     [[x_base[1337:1345], y_base[1337:1345]], "lines+markers", "base"],
-                #     # [[D_j_coreg[0, 1337:1345], D_j_coreg[1, 1337:1345]], "lines+markers", "new"],
-                # ], False)
 
 
 

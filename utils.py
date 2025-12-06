@@ -1,13 +1,17 @@
 import os
 from copy import deepcopy, copy
+from os import remove
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.ma.core import indices
 from shapely.geometry import Polygon
 from scipy.signal import find_peaks
 
-from math import pi, sqrt, sin, cos, radians
+from math import pi, sqrt, sin, cos, radians, copysign
 from plots_lib import display_plot
+
+from corner_recinstruction import bezier_arc_from_normals
 
 
 from constants import PLOT_DATA_ROUND, DPI_VALIE, PLOT_DISPLAY_SIZE, PLOT_LEGEND_FONT_SIZE, PLOT_MARKET_SIZE,\
@@ -276,7 +280,7 @@ def P_coef_count(M, d, X, Y, X_n, Y_n):
     P_align_coef = []
     # P_align_coef_new = []
 
-    # for i in range(M):
+    for i in range(M):
     #     position = (X_n[i+1] - X_n[i]) * (Y[i+1] - Y_n[i]) - (Y_n[i+1] - Y_n[i]) * (X[i+1] - X[i])
     #     if position < 0:
     #         # sign = -1
@@ -288,29 +292,32 @@ def P_coef_count(M, d, X, Y, X_n, Y_n):
     #         print("000000")
     #         sign = 0
     #
-    #     dist = sign * np.sqrt((X_n[i+1] - X[i+1]) ** 2 + (Y_n[i+1] - Y[i+1]) ** 2)
-    #     P_align_coef.append(dist)
+        psi = np.sign(to_angle(d[i][0], d[i][1], X[i + 1] - X_n[i + 1], Y[i + 1] - Y_n[i + 1])[0])
+
+        dist = psi * np.sqrt((X_n[i + 1] - X[i + 1]) ** 2 + (Y_n[i + 1] - Y[i + 1]) ** 2)
+        P_align_coef.append(dist)
 
 
-    if M != 1:
-        for i in range(M):
-            if str(np.arcsin(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])) == 'nan':
-                print()
+    # if M != 1:
+    #     for i in range(M):
+    #         if str(np.arcsin(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])) == 'nan':
+    #             print()
+    #
+    #         psi_0 = np.sign(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
+    #         psi_1 = np.sign(to_angle(d[i+1][0], d[i+1][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
+    #         k_0 = (Y_n[(i+1)%M]-Y_n[i%M])/(X_n[(i+1)%M]-X_n[i%M])
+    #         k_1 = (Y_n[(i+2)%M]-Y_n[(i+1)%M])/(X_n[(i+2)%M]-X_n[(i+1)%M])
+    #         len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
+    #         len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
+    #         P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
+    #         # print(P_align_coef_new[i], P_align_coef[i])
+    # else:
+    #     P_align_coef = None
+    # return P_align_coef
+    return np.roll(P_align_coef, 1)
 
-            psi_0 = np.sign(to_angle(d[i][0], d[i][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
-            psi_1 = np.sign(to_angle(d[i+1][0], d[i+1][1], X[i+1]-X_n[i+1], Y[i+1]-Y_n[i+1])[0])
-            k_0 = (Y_n[(i+1)%M]-Y_n[i%M])/(X_n[(i+1)%M]-X_n[i%M])
-            k_1 = (Y_n[(i+2)%M]-Y_n[(i+1)%M])/(X_n[(i+2)%M]-X_n[(i+1)%M])
-            len_0 = len_calc(k_0, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
-            len_1 = len_calc(k_1, X_n[i+1], Y_n[i+1], X[i+1], Y[i+1])
-            P_align_coef.append(psi_0 * len_0 if len_0 < len_1 else psi_1 * len_1)
-            # print(P_align_coef_new[i], P_align_coef[i])
-    else:
-        P_align_coef = None
-    return P_align_coef
 
-
-def vector_normalization(d, S, solution, curve_type):
+def vector_normalization(d, S, solution, curve_type, corner_points, psis):
     a_norm = []
     b_norm = []
     c_l_norm = []
@@ -330,7 +337,12 @@ def vector_normalization(d, S, solution, curve_type):
         vektors = (np.dot(matrix_rotate, [a_norm[i], b_norm[i]]))
         c_l_norm.append(vektors[0]), d_l_norm.append(vektors[1])
 
-        align = solution[8*i+1]
+        if i not in corner_points:
+            align = solution[8*i+1]
+        else:
+            solution.reshape(solution.shape[0] // 8, 8).transpose()[:, i - 5: i + 6]
+            align = (-psis[i-1]/2) + ((solution[8*(i - 1)+5] + solution[8*(i - 1)+9]) / 2)
+            print(f"{align=}")
         matrix_rotate = [[cos(-pi/2-align), -sin(-pi/2-align)], [sin(-pi/2-align), cos(-pi/2-align)]]
         vektors = (np.dot(matrix_rotate, [a_norm[i], b_norm[i]]))
         c_n_norm.append(vektors[0]), d_n_norm.append(vektors[1])
@@ -374,25 +386,38 @@ def midle_point_params_vector(M, S, solution, list_of_patrs, psis):
     return sol_half
 
 
-def midle_point_count(M, list_of_patrs, X, Y, S, a_norm, b_norm, sol_half):
+def midle_point_count(M, list_of_patrs, X, Y, S, a_norm, b_norm, sol_half, corner_points, solution, psis):
     B_j = []
     c_n_norm_B_j=[]
     d_n_norm_B_j=[]
+
+    if len(corner_points) > 0:
+        print("bu ga ga")
 
     for i in range(M):
         for k in range(len(list_of_patrs)):
             B_j.append([X[i] + S[i] * list_of_patrs[k] * a_norm[i], Y[i] + S[i] * list_of_patrs[k] * b_norm[i]])
 
-            index = len(list_of_patrs)*i+k
-            matrix_rotate = [[cos(-pi/2-sol_half[index][1]), -sin(-pi/2-sol_half[index][1])],
-                             [sin(-pi/2-sol_half[index][1]), cos(-pi/2-sol_half[index][1])]]
+            if i in corner_points - 1:
+                align = solution[8 * i + 1] * (1 - list_of_patrs[k]) + ((-psis[i] / 2) + ((solution[8 * i + 5] + solution[8 * i + 9]) / 2)) * list_of_patrs[k]
+                matrix_rotate = [[cos(-pi / 2 - align), -sin(-pi / 2 - align)],
+                                 [sin(-pi / 2 - align), cos(-pi / 2 - align)]]
+            elif i in corner_points:
+                align = ((-psis[i - 1] / 2) + ((solution[8 * (i - 1) + 5] + solution[8 * (i - 1) + 9]) / 2)) * (1 - list_of_patrs[k]) + solution[8 * i + 5] * list_of_patrs[k]
+                matrix_rotate = [[cos(-pi / 2 - align), -sin(-pi / 2 - align)],
+                                 [sin(-pi / 2 - align), cos(-pi / 2 - align)]]
+            else:
+                index = len(list_of_patrs)*i+k
+                matrix_rotate = [[cos(-pi/2-sol_half[index][1]), -sin(-pi/2-sol_half[index][1])],
+                                 [sin(-pi/2-sol_half[index][1]), cos(-pi/2-sol_half[index][1])]]
+
             vektors = (np.dot(matrix_rotate, [a_norm[i], b_norm[i]]))
             c_n_norm_B_j.append(vektors[0]), d_n_norm_B_j.append(vektors[1])
 
     return B_j, c_n_norm_B_j, d_n_norm_B_j
 
 
-def new_position_count(M, S, X, Y, solution, c_l_norm, c_n_norm, c_n_norm_j, d_l_norm, d_n_norm, d_n_norm_j, sol_half, list_of_patrs, B_j, curve_type):
+def new_position_count(M, S, X, Y, solution, c_l_norm, c_n_norm, c_n_norm_j, d_l_norm, d_n_norm, d_n_norm_j, sol_half, list_of_patrs, B_j, curve_type, display_corner_points, scale=1):
     M_j = []
     M_j_coreg = []
     D_j = []
@@ -418,11 +443,20 @@ def new_position_count(M, S, X, Y, solution, c_l_norm, c_n_norm, c_n_norm_j, d_l
         Y__disp.append(Y__)
         znam.append(((sqrt(X_**2 + Y_**2))**3))
 
-        D_j.append([X[i] + solution[8 * i] * c_l_norm[i], Y[i] + solution[8 * i] * d_l_norm[i]])
+        simple_points = []
+        # for ttt in display_corner_points:
+        #     simple_points.extend(list(range(ttt - 10, ttt + 10)))
+
+
+        D_j.append([X[i] + (solution[8 * i] * scale) * c_l_norm[i], Y[i] + (solution[8 * i] * scale) * d_l_norm[i]])
 
         if list_of_patrs:
             M_j_coreg.append([sum(S[:i]), (-(X__*Y_ - Y__*X_))/((sqrt(X_**2 + Y_**2))**3), S[i]*list_of_patrs[0]])
-            D_j_coreg.append([X[i] + solution[8*i] * c_n_norm[i], Y[i] + solution[8*i] * d_n_norm[i]])
+            if i in simple_points:
+                D_j_coreg.append([X[i] + (solution[8 * i] * scale) * c_l_norm[i], Y[i] + (solution[8 * i] * scale) * d_l_norm[i]])
+            else:
+                D_j_coreg.append([X[i] + (solution[8 * i] * scale) * c_n_norm[i], Y[i] + (solution[8 * i] * scale) * d_n_norm[i]])
+
             for k in range(len(list_of_patrs)):
                 index = len(list_of_patrs)*i+k
                 M_j.append([M_j[i*len(list_of_patrs)+k+i][0]+S[i]*list_of_patrs[0], sol_half[index][2]])
@@ -440,8 +474,11 @@ def new_position_count(M, S, X, Y, solution, c_l_norm, c_n_norm, c_n_norm_j, d_l
                 znam.append(((sqrt(X_**2 + Y_**2))**3))
 
                 M_j_coreg.append([M_j[i*len(list_of_patrs)+k+i][0]+S[i]*list_of_patrs[0], (-(X__*Y_ - Y__*X_))/((sqrt(X_**2 + Y_**2))**3), S[i]*list_of_patrs[0]])
-                D_j.append([B_j[index][0] + sol_half[index][0] * c_l_norm[i], B_j[index][1] + sol_half[index][0] * d_l_norm[i]])
-                D_j_coreg.append([B_j[index][0] + sol_half[index][0] * c_n_norm_j[index], B_j[index][1] + sol_half[index][0] * d_n_norm_j[index]])
+                D_j.append([B_j[index][0] + (sol_half[index][0] * scale) * c_l_norm[i], B_j[index][1] + (sol_half[index][0] * scale) * d_l_norm[i]])
+                if i in simple_points:
+                    D_j_coreg.append([B_j[index][0] + (sol_half[index][0] * scale) * c_l_norm[i], B_j[index][1] + (sol_half[index][0] * scale) * d_l_norm[i]])
+                else:
+                    D_j_coreg.append([B_j[index][0] + (sol_half[index][0] * scale) * c_n_norm_j[index], B_j[index][1] + (sol_half[index][0] * scale) * d_n_norm_j[index]])
     M_j.append([sum(S), solution[-2]])
     X_ = 1 + solution[-3]*sin(solution[-3]) + solution[-4]*cos(solution[-3])*solution[-2]
     Y_ = solution[-3]*cos(solution[-3]) - solution[-4]*sin(solution[-3])*solution[-2]
@@ -467,108 +504,10 @@ def new_position_count(M, S, X, Y, solution, c_l_norm, c_n_norm, c_n_norm_j, d_l
     combined = [np.concatenate((cutted_solution[:, i:i + 1], sol_half_parts[i]), axis=1) for i in range(view_solution.shape[1])]
     full_solution = np.concatenate(combined, axis=1)
 
-    # display_plot_plotly(
-    #     [
-    #         [
-    #             np.array([[i, X_disp[i]] for i in range(len(X_disp))]).transpose(),
-    #             "markers+lines", "X'", "#E60000", {}, True
-    #         ],
-    #         [
-    #             np.array([[i, Y_disp[i]] for i in range(len(Y_disp))]).transpose(),
-    #             "markers+lines", "Y'", "#E6B400", {}, True
-    #         ],
-    #         [
-    #             np.array([[i, X__disp[i]] for i in range(len(X__disp))]).transpose(),
-    #             "markers+lines", "X''", "#288E45", {}, True
-    #         ],
-    #         [
-    #             np.array([[i, Y__disp[i]] for i in range(len(Y__disp))]).transpose(),
-    #             "markers+lines", "Y''", "#0014E6", {}, True
-    #         ],
-    #     ],
-    #     filename=f"smooth_contour/Derivatives"
-    # )
-
-    # display_plot_plotly(
-    #     [
-    #         [
-    #             np.array([[i, full_solution[0][i]] for i in range(len(full_solution[0]))]).transpose(),
-    #             "markers+lines", "W full", "#B22222", {}, True
-    #         ],
-    #         [
-    #             np.array([[(points_in_parts + 1) * i, solution[::8][i]] for i in range(len(solution[::8]))]).transpose(),
-    #             "markers+lines", "W", "#FF0000", {}, True
-    #         ],
-    #         [
-    #             np.array([[i, full_solution[1][i]] for i in range(len(full_solution[1]))]).transpose(),
-    #             "markers+lines", "Aligns full", "#CC8400", {}, True
-    #         ],
-    #         [
-    #             np.array([[(points_in_parts + 1) * i, solution[1::8][i]] for i in range(len(solution[1::8]))]).transpose(),
-    #             "markers+lines", "Aligns", "#FFA500", {}, True
-    #         ],
-    #         [
-    #             np.array([[i, full_solution[2][i]] for i in range(len(full_solution[2]))]).transpose(),
-    #             "markers+lines", "M full", "#005500", {}, True
-    #         ],
-    #         [
-    #             np.array([[(points_in_parts + 1) * i, solution[2::8][i]] for i in range(len(solution[2::8]))]).transpose(),
-    #             "markers+lines", "M", "#008000", {}, True
-    #         ],
-    #         [
-    #             np.array([[i, full_solution[3][i]] for i in range(len(full_solution[3]))]).transpose(),
-    #             "markers+lines", "Q full", "#00008B", {}, True
-    #         ],
-    #         [
-    #             np.array([[(points_in_parts + 1) * i, solution[3::8][i]] for i in range(len(solution[3::8]))]).transpose(),
-    #             "markers+lines", "Q", "#0000FF", {}, True
-    #         ],
-    #     ],
-    #     filename=f"smooth_contour/Solution"
-    # )
-
-    # display_plot_plotly(
-    #     [
-    #         [
-    #             np.array([[i, full_solution[1][i]] for i in range(len(full_solution[1]))]).transpose(),
-    #             "markers+lines", "Aligns (solution + sol_half)", "#FF0000", {}, True
-    #         ],
-    #         [
-    #             np.array([[(points_in_parts + 1) * i, solution[1::8][i]] for i in
-    #                       range(len(solution[1::8]))]).transpose(),
-    #             "markers+lines", "Aligns (solution each 8)", "#FFA500", {}, True
-    #         ],
-    #         [
-    #             np.array([[i * (points_in_parts // 2 + 1), solution[1::4][i]] for i in
-    #                       range(len(solution[1::4]))]).transpose(),
-    #             "markers+lines", "Aligns (solution each 4)", "#008000", {}, True
-    #         ],
-    #         [
-    #             np.array([[i + i // points_in_parts + 1, disp_sol_half[1][i]] for i in range(len(disp_sol_half[1]))]).transpose(),
-    #             "markers+lines", "Aligns (sol_half)", "#0000FF", {}, True
-    #         ],
-    #     ],
-    #     filename=f"smooth_contour/Aligns"
-    # )
-
     D_j.append([X[-1] + solution[-4] * c_l_norm[-1], Y[-1] + solution[-4] * d_l_norm[-1]])
     if list_of_patrs:
         M_j_coreg.append([sum(S), (-(X__*Y_ - Y__*X_))/((sqrt(X_**2 + Y_**2))**3), S[-1]*list_of_patrs[0]])
-        D_j_coreg.append([X[-1] + solution[-4] * c_n_norm[-1], Y[-1] + solution[-4] * d_n_norm[-1]])
-
-    # display_plot_plotly(
-    #     [
-    #         [
-    #             np.array([[i, M_j[i][1]] for i in range(len(M_j))]).transpose(),
-    #             "markers+lines", "M_j", "#E60000", {}, True
-    #         ],
-    #         [
-    #             np.array([[i, M_j_coreg[i][1]] for i in range(len(M_j_coreg))]).transpose(),
-    #             "markers+lines", "M_j_coreg", "#0014E6", {}, True
-    #         ],
-    #     ],
-    #     filename=f"smooth_contour/Moments"
-    # )
+        D_j_coreg.append([X[-1] + (solution[-4] * scale) * c_n_norm[-1], Y[-1] + (solution[-4] * scale) * d_n_norm[-1]])
 
     return map(np.transpose, map(np.array, [M_j, M_j_coreg, D_j, D_j_coreg]))
 
@@ -788,7 +727,7 @@ def find_near_point(x, y, x_new, y_new, D_j_coreg):
     D_j_coreg_T = D_j_coreg.T
     total_len = D_j_coreg.shape[1]
     used_points = set()
-    search_radius = 200
+    search_radius = 400
 
     x_new_array = []
     y_new_array = []
@@ -797,9 +736,15 @@ def find_near_point(x, y, x_new, y_new, D_j_coreg):
     replace_points = []
     changed_indexes = []
 
+    old_points_id = []
+    new_points_id = []
+
+    indexes_to_sort = []
+
     position_indices = [np.where((D_j_coreg_T == point).all(axis=1))[0][0] for point in mirror_points[:-1]]
 
     for idx, point_index in enumerate(position_indices):
+        # if idx not in []:
         indices_range = np.arange(point_index - search_radius, point_index + search_radius + 1) % total_len
         candidate_points = D_j_coreg_T[indices_range]
 
@@ -808,11 +753,34 @@ def find_near_point(x, y, x_new, y_new, D_j_coreg):
 
         distances = np.linalg.norm(candidate_points - current_points[idx], axis=1)
         chosen_point = candidate_points[np.argmin(distances)]
+        indexes_to_sort.append(np.where((D_j_coreg_T == chosen_point).all(axis=1))[0][0])
+        # else:
+        #     chosen_point = mirror_points[idx]
+        #     point = np.where((D_j_coreg_T == chosen_point).all(axis=1))[0][0]
+        #
+        #     # if point < indexes_to_sort[-1]:
+        #     #     print("utils change!!!!")
+        #     #
+        #     #     imdddd = len(indexes_to_sort)
+        #     #     x = np.delete(x, imdddd)
+        #     #     x = np.insert(x, imdddd, (x[imdddd - 1] + x[imdddd - 2]) / 2)
+        #     #
+        #     #     y = np.delete(y, imdddd)
+        #     #     y = np.insert(y, imdddd, (y[imdddd - 1] + y[imdddd - 2]) / 2)
+        #     #
+        #     #     p_types = np.delete(p_types, imdddd)
+        #     #     p_types = np.insert(p_types, imdddd, 3)
+        #     #
+        #     #     display_corner_points[np.where(display_corner_points == idx)[0][0]] -= 1
+        #
+        #     indexes_to_sort.append(point)
 
         if not np.array_equal(chosen_point, mirror_points[idx]):
             changed_indexes.append(idx)
             old_points.append(mirror_points[idx])
             replace_points.append(chosen_point)
+            old_points_id.append(np.where((D_j_coreg_T == mirror_points[idx]).all(axis=1))[0][0])
+            new_points_id.append(np.where((D_j_coreg_T == chosen_point).all(axis=1))[0][0])
 
         used_points.add(tuple(chosen_point))
         x_new_array.append(chosen_point[0])
@@ -823,7 +791,7 @@ def find_near_point(x, y, x_new, y_new, D_j_coreg):
         np.array(y_new_array),
         np.array(changed_indexes),
         np.array(old_points),
-        np.array(replace_points)
+        np.array(replace_points),
     )
 
 
@@ -905,16 +873,28 @@ def find_near_point(x, y, x_new, y_new, D_j_coreg):
 #
 #     return sorted_small_contour[:, 0], sorted_small_contour[:, 1]
 
-def order_points(b_x, b_y, x, y, x_inp, y_inp):
+def order_points(b_x, b_y, x, y, x_inp, y_inp, corner_points = []):
+    # D_j_coreg[0], D_j_coreg[1], x, y, x_base, y_base
     big = np.column_stack((b_x, b_y))
     small = np.column_stack((x, y))
     small_inp = np.column_stack((x_inp, y_inp))
+    remove_pints = []
+    new_points = []
 
     # Находим индексы точек small в big
     indices = [np.where((big == point).all(axis=1))[0][0] for point in small]
 
     # Сортируем small по индексам в big
     sorted_indices = np.argsort(indices)
+
+    for i, fff in enumerate(np.roll(np.array(list(range(len(indices)))), -sorted_indices[0])):
+        if sorted_indices[i] != fff:
+            print("SORT", sorted_indices[i], "---->>>", fff)
+            if sorted_indices[i] in corner_points:
+                print("Corner moved")
+                remove_pints.append(sorted_indices[i])
+                new_points.append(fff)
+
     sorted_small = small[sorted_indices]
     sorted_small_inp = small_inp[sorted_indices]
     # sorted_big_indices = np.array(indices)[sorted_indices]
@@ -930,7 +910,14 @@ def order_points(b_x, b_y, x, y, x_inp, y_inp):
     rotated_small = np.append(rotated_small, [rotated_small[0]], axis=0)
     rotated_small_inp = np.append(rotated_small_inp, [rotated_small_inp[0]], axis=0)
 
-    return rotated_small[:, 0], rotated_small[:, 1], rotated_small_inp[:, 0], rotated_small_inp[:, 1]
+    return (
+        rotated_small[:, 0],
+        rotated_small[:, 1],
+        rotated_small_inp[:, 0],
+        rotated_small_inp[:, 1],
+        np.array(remove_pints),
+        np.array(new_points),
+    )
 
 
 # def ccw(a, b, c):
@@ -1009,7 +996,8 @@ def polygon_area(quad):
 
 def delete_near_points(arr, candidates, order):
     min_distance = 3500
-    # min_distance = 1
+    # min_distance = 3500
+    # min_distance = 200
     selected = []
     for idx in sorted(candidates, key=lambda i: arr[i], reverse=order):  # сортируем по высоте
         if all(abs(idx - prev) >= min_distance for prev in selected):
@@ -1018,7 +1006,7 @@ def delete_near_points(arr, candidates, order):
     return selected
 
 
-def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_index, filename):
+def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_index, filename, full=False):
     arr = M_j[1]
     arr = np.insert(arr, 0, M_j[1][-2])
     max_val = np.max(arr)
@@ -1026,19 +1014,19 @@ def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_ind
 
     if not direction:
         high_peaks, _ = find_peaks(arr)
-        high_peaks = [i-1 for i in high_peaks if arr[i] > 0.5 * max_val]
+        high_peaks = [i-1 for i in high_peaks if arr[i] > 0.25 * max_val]
         high_peaks = delete_near_points(arr, high_peaks, True)
 
         low_peaks, _ = find_peaks(-arr)
-        low_peaks = [i-1 for i in low_peaks if arr[i] < 0.5 * min_val]
+        low_peaks = [i-1 for i in low_peaks if arr[i] < 0.25 * min_val]
         low_peaks = delete_near_points(arr, low_peaks, False)
     else:
         high_peaks, _ = find_peaks(-arr)
-        high_peaks = [i-1 for i in high_peaks if arr[i] < 0.5 * min_val]
+        high_peaks = [i-1 for i in high_peaks if arr[i] < 0.25 * min_val]
         high_peaks = delete_near_points(arr, high_peaks, False)
 
         low_peaks, _ = find_peaks(arr)
-        low_peaks = [i-1 for i in low_peaks if arr[i] > 0.5 * max_val]
+        low_peaks = [i-1 for i in low_peaks if arr[i] > 0.25 * max_val]
         low_peaks = delete_near_points(arr, low_peaks, True)
 
     # sort_low_peaks = sorted(low_peaks)
@@ -1071,33 +1059,33 @@ def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_ind
 
     delete_indexes = list(delete_indexes)
 
-    display_plot_plotly(
-        [
-            [
-                D_j_coreg,
-                "lines", "Моменти", "#FF00FF", {}, True
-            ],
-            [
-                D_j_coreg[:, all_extrema[[*delete_indexes[0: 4], delete_indexes[0]]]],
-                "lines+markers", "Rect 1", "#FF0F00", {}, True
-            ],
-            [
-                D_j_coreg[:, all_extrema[[*delete_indexes[4: 8], delete_indexes[4]]]],
-                "lines+markers", "Rect 2", "#FF0F00", {}, True
-            ],
-            [
-                D_j_coreg[:, all_extrema[[*delete_indexes[8: 12], delete_indexes[8]]]],
-                "lines+markers", "Rect 3", "#FF0F00", {}, True
-            ],
-            [
-                D_j_coreg[:, all_extrema[[*delete_indexes[12: 16], delete_indexes[12]]]],
-                "lines+markers", "Rect 4", "#FF0F00", {}, True
-            ],
-        ],
-        save_path=f"{MATERIALS_PATH}smooth_contour/{filename.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{'straight' if direction else 'reverse'}/",
-        filename="rect_with_min_area",
-        equal=True
-    )
+    # display_plot_plotly(
+    #     [
+    #         [
+    #             D_j_coreg,
+    #             "lines", "Моменти", "#FF00FF", {}, True
+    #         ],
+    #         [
+    #             D_j_coreg[:, all_extrema[[*delete_indexes[0: 4], delete_indexes[0]]]],
+    #             "lines+markers", "Rect 1", "#FF0F00", {}, True
+    #         ],
+    #         [
+    #             D_j_coreg[:, all_extrema[[*delete_indexes[4: 8], delete_indexes[4]]]],
+    #             "lines+markers", "Rect 2", "#FF0F00", {}, True
+    #         ],
+    #         [
+    #             D_j_coreg[:, all_extrema[[*delete_indexes[8: 12], delete_indexes[8]]]],
+    #             "lines+markers", "Rect 3", "#FF0F00", {}, True
+    #         ],
+    #         [
+    #             D_j_coreg[:, all_extrema[[*delete_indexes[12: 16], delete_indexes[12]]]],
+    #             "lines+markers", "Rect 4", "#FF0F00", {}, True
+    #         ],
+    #     ],
+    #     save_path=f"{MATERIALS_PATH}smooth_contour/{filename.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{'straight' if direction else 'reverse'}/",
+    #     filename="rect_with_min_area",
+    #     equal=True
+    # )
 
     display_plot_plotly(
         [
@@ -1122,13 +1110,241 @@ def get_corner_points_candidate(M_j, D_j_coreg, direction, general_l, puzzle_ind
         filename="corner_candidats_moments"
     )
 
-    return corner_points
+    return corner_points if not full else np.array(sorted([*high_peaks, *low_peaks]))
 
 def check_dir(path):
     path = "/".join(path.split("/")[:-1])
     if not os.path.exists(path):
         os.makedirs(path)
 
+def insert_corner_points(arr, index, value = None):
+    # if index == (len(arr) - 1):
+    #     arr = np.insert(arr, index + 1, value or (arr[index] + arr[index + 1]) / 2)
+    #     arr = np.insert(arr, 1 , value or (arr[index - 1] + arr[index]) / 2)
+    if index == 0:
+        arr = np.insert(arr, 1, value or (arr[index] + arr[index + 1]) / 2)
+        # arr = np.insert(arr, len(arr) - 1, value or (arr[index - 2] + arr[index - 1]) / 2)
+    else:
+        arr = np.insert(arr, index + 1, value or (arr[index] + arr[index + 1]) / 2)
+        # arr = np.insert(arr, index, value or (arr[index - 1] + arr[index]) / 2)
+
+    return arr
+
+
+def normalize_corner_vectors(x, y, B_j, corners, solution, c_n, d_n, parts, x_, y_, sol_half, scale = 1):
+    solution.reshape(solution.shape[0] // 8, 8).transpose()
+
+    for cp in corners:
+        start_dev, end_dev = solution[(cp - 1) * 8] * scale, solution[cp * 8] * scale
+        start_c_n, end_c_n = c_n[cp - 1], c_n[cp]
+        start_d_n, end_d_n = d_n[cp - 1], d_n[cp]
+        b_ind = (cp - 1) * 39
+        ind = (cp - 1) * 40
+
+        for q in range(0, len(parts)):
+            c_l_val = start_c_n + (end_c_n - start_c_n) * parts[q]
+            d_l_val = start_d_n + (end_d_n - start_d_n) * parts[q]
+            # dev_val = start_dev + (end_dev - start_dev) * parts[q]
+            x[ind + q + 1] = B_j[b_ind + q][0] + sol_half[b_ind + q][0] * c_l_val
+            y[ind + q + 1] = B_j[b_ind + q][1] + sol_half[b_ind + q][0] * d_l_val
+
+        start_dev, end_dev = solution[cp * 8] * scale, solution[(cp + 1) * 8] * scale
+        start_c_n, end_c_n = c_n[cp], c_n[cp + 1]
+        start_d_n, end_d_n = d_n[cp], d_n[cp + 1]
+        b_ind = (cp) * 39
+        ind = (cp) * 40
+
+        for q in range(0, len(parts)):
+            c_l_val = start_c_n + (end_c_n - start_c_n) * parts[q]
+            d_l_val = start_d_n + (end_d_n - start_d_n) * parts[q]
+            # dev_val = start_dev + (end_dev - start_dev) * parts[q]
+            x[ind + q + 1] = B_j[b_ind + q][0] + sol_half[b_ind + q][0] * c_l_val
+            y[ind + q + 1] = B_j[b_ind + q][1] + sol_half[b_ind + q][0] * d_l_val
+
+    return np.vstack([x, y])
+
+        # for q in range(0, parts - 1):
+        #     D_j_coreg[0][((dp - 1) * 40) + q + 1] = D_j_coreg[0][(dp - 1) * 40] + (D_j_coreg[0][dp * 40] - D_j_coreg[0][(dp - 1) * 40]) * list_of_patrs[q]
+        #     D_j_coreg[1][((dp - 1) * 40) + q + 1] = D_j_coreg[1][(dp - 1) * 40] + (D_j_coreg[1][dp * 40] - D_j_coreg[1][(dp - 1) * 40]) * list_of_patrs[q]
+        #
+        # for q in range(0, parts - 1):
+        #     D_j_coreg[0][(dp * 40) + q + 1] = D_j_coreg[0][dp * 40] + (D_j_coreg[0][(dp + 1) * 40] - D_j_coreg[0][dp * 40]) * list_of_patrs[q]
+        #     D_j_coreg[1][(dp * 40) + q + 1] = D_j_coreg[1][dp * 40] + (D_j_coreg[1][(dp + 1) * 40] - D_j_coreg[1][dp * 40]) * list_of_patrs[q]
 
 
 
+def get_norm_vectors(x, y, c_n_norm, d_n_norm, solution, len_ = 1):
+    x_norm = []
+    y_norm = []
+    x_norm_real = []
+    y_norm_real = []
+
+    for i in range(len(solution)):
+        x_norm.append([x[i], x[i] + np.sign(solution[i]) * c_n_norm[i] * len_, None])
+        x_norm_real.append([x[i], x[i] + solution[i] * c_n_norm[i], None])
+
+        y_norm.append([y[i], y[i] + np.sign(solution[i]) * d_n_norm[i] * len_, None])
+        y_norm_real.append([y[i], y[i] + solution[i] * d_n_norm[i], None])
+
+    return (
+        np.array(x_norm).flatten(),
+        np.array(y_norm).flatten(),
+
+        np.array(x_norm_real).flatten(),
+        np.array(y_norm_real).flatten(),
+    )
+
+
+def is_cyclic_order(positions, length):
+    """ Проверка, можно ли представить массив positions как циклический отрезок """
+    positions = np.sort(positions)
+    diffs = (positions - positions[0]) % length
+    return np.all(np.diff(diffs) == 1)
+
+
+def is_cyclic_subsequence(seq, total_len):
+    """Проверяет, являются ли элементы в seq подряд идущими (циклически) индексами"""
+    seq = np.array(seq)
+    sorted_seq = np.sort(seq)
+    diffs = (sorted_seq - sorted_seq[0]) % total_len
+    return np.all(np.diff(diffs) == 1)
+
+
+def near_find_check(x, y, x_big, y_big, x_base, y_base, point_type, display_corner_points):
+    new_display_corner_points = np.copy(display_corner_points)
+    # Данные
+    big_array = np.column_stack((x_big, y_big))
+    small_array = np.column_stack((x, y))
+
+    # Получаем позиции точек small_array в big_array
+    positions_in_big = []
+    for pt in small_array:
+        idx = np.where(np.all(big_array == pt, axis=1))[0]
+        if len(idx) == 0:
+            raise ValueError(f"Точка {pt} не найдена в big_array")
+        positions_in_big.append(idx[0])
+    positions_in_big = np.array(positions_in_big)
+
+    # Проверка, идут ли позиции подряд (циклически)
+    if not is_cyclic_subsequence(positions_in_big, len(big_array) - 1):
+        start_point = small_array[0]
+        sorted_order = np.argsort(positions_in_big)
+
+        start_index = np.where((small_array[np.argsort(positions_in_big)] == start_point).all(axis=1))[0][0]
+        sorted_order = np.roll(sorted_order, -start_index, axis=0)
+
+        from_indices = np.arange(len(small_array))
+        to_indices = sorted_order
+
+        mask = from_indices != to_indices
+        changed_pairs = list(zip(from_indices[mask], to_indices[mask]))
+
+        for f, t in changed_pairs:
+            if f in display_corner_points:
+                print("wrong order:", f, t)
+                x_base = insert_corner_points(np.delete(x_base, f), t - 1)
+                y_base = insert_corner_points(np.delete(y_base, f), t - 1)
+                point_type = insert_corner_points(np.delete(point_type, f), t - 1, 3)
+
+                x[f], x[t] = x[t], x[f]
+                y[f], y[t] = y[t], y[f]
+
+                mask = display_corner_points == f
+                display_corner_points[mask] = t
+
+
+    return x, y, x_base, y_base, point_type, display_corner_points
+
+
+
+def delete_corner_points(x, y, x_base, y_base, D_j_coreg, point_type, display_corner_points):
+    display_corner_points_positions = np.vstack((x[display_corner_points], y[display_corner_points])).T
+
+    mask = ~np.any(np.all(D_j_coreg[:, None] == display_corner_points_positions, axis=2), axis=1)
+    D_j_coreg = D_j_coreg[mask]
+
+    for p in np.sort(display_corner_points)[::-1]:
+        x = np.delete(x, p)
+        y = np.delete(y, p)
+        x_base = np.delete(x_base, p)
+        y_base = np.delete(y_base, p)
+        point_type = np.delete(point_type, p - 1)
+
+    return x, y, D_j_coreg.T, x_base, y_base, point_type, display_corner_points_positions
+
+
+def insert_new_corner_points(D_j_x, D_j_y, x, y, x_base, y_base, point_type, display_corner_points_positions):
+    small = np.column_stack((x, y))
+    insert = display_corner_points_positions
+    big = np.column_stack((D_j_x, D_j_y))
+
+    insert_new = []
+
+    indices = []
+    # используем кортежи для удобного сравнения
+    used = set(map(tuple, small))
+
+    for p in map(tuple, insert):
+        if p in used:
+            # если точка уже есть — ищем ближайшую "свободную" слева
+            i = np.where((big == p).all(axis=1))[0][0]
+            while i > 0 and tuple(big[i]) in used:
+                i -= 1
+            p = tuple(big[i])
+
+        used.add(p)
+
+        insert_new.append(list(p))
+
+        # ищем индекс вставки с сохранением сортировки по порядку big
+        order = [tuple(pt) for pt in big]
+        idx = [order.index(tuple(pt)) for pt in small]
+        pos = np.searchsorted(idx, order.index(p))
+        indices.append(pos)
+
+    indices = np.array(indices)
+
+    insert_new = np.array(insert_new)
+
+    for fff in np.argsort(indices)[::-1]:
+        x = np.insert(x, indices[fff], insert_new[fff][0])
+        y = np.insert(y, indices[fff], insert_new[fff][1])
+
+        x_base = np.insert(x_base, indices[fff], (x_base[indices[fff] - 1] + x_base[indices[fff]]) / 2)
+        y_base = np.insert(y_base, indices[fff], (y_base[indices[fff] - 1] + y_base[indices[fff]]) / 2)
+        point_type = np.insert(point_type, indices[fff] - 1, 3)
+
+
+    new_indices = np.array([])
+    index_move = 0
+    for fff in np.argsort(indices):
+        new_indices = np.append(new_indices, indices[fff] + index_move)
+        index_move += 1
+
+
+    return x, y, x_base, y_base, point_type, new_indices.astype(int)
+
+
+def find_force(vallll, P_align_coef, C, S, limit, imagine=False):
+    force = 0
+
+    lenth = 0 if not imagine else S[vallll - 1]
+    left_ind = vallll if not imagine else vallll - 1
+    exel_row = ""
+    while lenth < limit:
+        exel_row += f"{np.array(P_align_coef)[left_ind]} {C[left_ind]}\n"
+        force += np.array(P_align_coef)[left_ind] ** 2 * C[left_ind]
+        lenth += S[left_ind - 1]
+        left_ind -= 1
+
+    lenth = S[vallll]
+    right_ind = vallll + 1
+    while lenth < limit:
+        exel_row += f"{np.array(P_align_coef)[right_ind]} {C[right_ind]}\n"
+        force += np.array(P_align_coef)[right_ind] ** 2 * C[right_ind]
+        lenth += S[right_ind]
+        right_ind = (right_ind + 1) % len(C)
+
+    # print(exel_row.replace(".", ","))
+
+    return force, left_ind  + 1, right_ind - 1
