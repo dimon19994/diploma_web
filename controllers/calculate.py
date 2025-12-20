@@ -41,7 +41,7 @@ class Calculate(_Controller):
 
         general_l_imput = float(self.request_data.get('general_l'))
         general_l = general_l_imput or 15
-        start_L = 20
+        start_L = float(self.request_data.get('start_l', 20))
         L = start_L
         # L = 1
         d_4 = L**4
@@ -57,9 +57,9 @@ class Calculate(_Controller):
 
         if curve_type == "not_loop":
             aligns = [
-                int(self.request_data.get('align_1')),
+                int(self.request_data.get('align_1', 0)),
                 int(self.request_data.get('direction_1', 1)),
-                int(self.request_data.get('align_2')),
+                int(self.request_data.get('align_2', 0)),
                 int(self.request_data.get('direction_2', 1)),
             ]
         else:
@@ -110,6 +110,18 @@ class Calculate(_Controller):
         real_corner_point = None
 
         SHOW_NEW_TYPE_PLOTS = True
+
+        display_plot_plotly(
+            [
+                [
+                    [x_base, y_base],
+                    "lines+markers", "iteration input points", "black", {}, True
+                ]
+            ],
+            equal=True,
+            save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
+            filename=f"input_points"
+        )
 
         for iteration in range(iterations):
             print(f"{iteration=}, {L=}")
@@ -233,7 +245,7 @@ class Calculate(_Controller):
             coreg_time = time.time()
             print(f"Время выполнения (coreg_time): {coreg_time - solution_time:.4f} секунд")
 
-            if iteration == (iterations - 1) or iteration == 3 or iteration == 9 or iteration == 15:
+            if iteration == (iterations - 1) or iteration == 3 or iteration == 9 or iteration == 12 or iteration == 15000:
                 qulity = 0
                 m_j_dif = np.array([*[M_j[0][i + 1] - M_j[0][i] for i in range(M_j.shape[1] - 1)], M_j[0][-1] - M_j[0][-2]])
                 M_j = np.vstack((M_j, m_j_dif))
@@ -243,7 +255,10 @@ class Calculate(_Controller):
                 print("Якість", qulity)
                 print("Довжина", M_j[0][-1])
 
-                top_4_candidates = get_corner_points_candidate(M_j, D_j_coreg, straight, general_l, puzzle_index, file_name, full=True) // 40
+                if len(display_corner_points) > 0 :
+                    top_4_candidates = display_corner_points
+                else:
+                    top_4_candidates = get_corner_points_candidate(M_j, D_j_coreg, straight, general_l, puzzle_index, file_name, full=True) // 40
 
                 if save_data:
                     display_plot_plotly(
@@ -268,16 +283,7 @@ class Calculate(_Controller):
                 pics_force = []
                 force_indexes = []
 
-                "\n".join(
-                    [
-                        " ".join(x_base[827:837].astype(str).tolist()),
-                        " ".join(y_base[827:837].astype(str).tolist()),
-                        " ".join(x[827:837].astype(str).tolist()),
-                        " ".join(y[827:837].astype(str).tolist()),
-                    ]
-                ).replace(".", ",")
-
-                top_4_candidates = np.append(top_4_candidates, 99)
+                # top_4_candidates = np.append(top_4_candidates, 99)
 
                 for tp in top_4_candidates:
                     pic_force, left, right = find_force(tp, P_align_coef, C, S_input, L * 3 / 4)
@@ -342,10 +348,11 @@ class Calculate(_Controller):
 
                     force_full = sum(np.array(P_align_coef) ** 2 * C) - sum(np.array(P_align_coef)[display_corner_points] ** 2 * C[display_corner_points])
                     print("Робота повна", force_full)
-                    print("Кути", psis[display_corner_points - 1])
+                    print("Кути рад", psis[display_corner_points - 1])
+                    print("Кути", np.degrees(psis[display_corner_points - 1]))
 
-
-                    continue
+                    if iteration == (iterations - 1):
+                        continue
 
 
             if curve_type == "loop":  # and iteration == 0:
@@ -490,6 +497,7 @@ class Calculate(_Controller):
                     D_j_coreg_without_corners = np.copy(D_j_coreg)
 
                     if len(display_corner_points) > 0:
+                        print(f"ggggg {iteration=}")
                         x, y, D_j_coreg_without_corners, x_base, y_base, point_type, display_corner_points_positions = delete_corner_points(x, y, x_base, y_base, D_j_coreg.T, point_type, display_corner_points)
 
                         if SHOW_NEW_TYPE_PLOTS:
@@ -501,6 +509,10 @@ class Calculate(_Controller):
                                 save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
                                 filename=f"after_{iteration + 1}_without_imagine_points",
                             )
+
+                        if iteration == 12:
+                            print("removed extra corner points")
+                            display_corner_points_positions = display_corner_points_positions[2::5]
 
                     find_near_point_start = time.time()
                     x, y, indexes, old_positions, new_positions = find_near_point(x_base, y_base, x, y, D_j_coreg_without_corners)
@@ -676,8 +688,8 @@ class Calculate(_Controller):
                     order_points_n_time = time.time()
                     print(f"Время выполнения (general_n_time): {order_points_n_time - start_n_iteration:.4f} секунд")
 
-                    if iteration == 15:
-                        top_4_candidates = get_corner_points_candidate(M_j, D_j_coreg, straight, general_l, puzzle_index, file_name)
+                    if iteration == 9:
+                        top_4_candidates = get_corner_points_candidate(M_j, D_j_coreg, straight, general_l, puzzle_index, file_name, full=True)
 
                         display_plot_plotly(
                             [
@@ -753,9 +765,9 @@ class Calculate(_Controller):
                             )
 
                     if iteration > 0:
-                        if iteration in [1, 2, 12, 13, 14, 15]:
+                        if iteration in [1, 2]:
                             pass
-                        elif iteration < 5  or (iteration > 8 and iteration < 12):
+                        elif iteration < 5:
                             L = L / scale_coef
                         else:
                             L = general_l
