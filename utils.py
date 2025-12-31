@@ -196,14 +196,18 @@ def matrix_coefs(M, S, psis, C, point_type, equation_type, P_align_coef=None, ex
                 coefs[i*8+7] = psis[i]
 
             if P_align_coef is not None and point_type[i] == 0:
-                coefs[i*8+7] = -C[i]*P_align_coef[i]
+                try:
+                    coefs[i*8+9] = -C[i]*P_align_coef[i]
+                except Exception as ex:
+                    pass
 
-        coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
-        coefs[-1] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
+
+        # coefs[1] = (radians(aligns[0]) + aligns[1] * extra_psis[0])
+        # coefs[-1] = (radians(aligns[2]) + aligns[3] * extra_psis[-1])
         # print(degrees(coefs[1]), degrees(coefs[-1]))
 
-        matrix[0][0], matrix[1][1] = 1, 1
-        matrix[-2][-4], matrix[-1][-3] = 1, 1
+        matrix[0][0], matrix[1][2] = 1, 1
+        matrix[-2][-4], matrix[-1][-2] = 1, 1
     else:
         for i in range(M):
             # Рівняння зв'язку
@@ -276,22 +280,11 @@ def len_calc(k, X, Y, x, y):
     return abs((y-Y)/(sqrt(1+k**2))-(k*(x-X))/(sqrt(1+k**2)))
 
 
-def P_coef_count(M, d, X, Y, X_n, Y_n):
+def P_coef_count(M, d, X, Y, X_n, Y_n, roll_ = True):
     P_align_coef = []
     # P_align_coef_new = []
 
     for i in range(M):
-    #     position = (X_n[i+1] - X_n[i]) * (Y[i+1] - Y_n[i]) - (Y_n[i+1] - Y_n[i]) * (X[i+1] - X[i])
-    #     if position < 0:
-    #         # sign = -1
-    #         sign = 1
-    #     elif position > 0:
-    #         # sign = 1
-    #         sign = -1
-    #     else:
-    #         print("000000")
-    #         sign = 0
-    #
         psi = np.sign(to_angle(d[i][0], d[i][1], X[i + 1] - X_n[i + 1], Y[i + 1] - Y_n[i + 1])[0])
 
         dist = psi * np.sqrt((X_n[i + 1] - X[i + 1]) ** 2 + (Y_n[i + 1] - Y[i + 1]) ** 2)
@@ -314,7 +307,10 @@ def P_coef_count(M, d, X, Y, X_n, Y_n):
     # else:
     #     P_align_coef = None
     # return P_align_coef
-    return np.roll(P_align_coef, 1)
+    if roll_:
+        return np.roll(P_align_coef, 1)
+    else:
+        return P_align_coef
 
 
 def vector_normalization(d, S, solution, curve_type, corner_points, psis):
@@ -721,7 +717,7 @@ def display_plot_plotly(data, equal=False, filename=None, save_path="./", backgr
 #
 #     return x_new_array, y_new_array, indexes, old_points, replace_points
 
-def find_near_point(x, y, x_new, y_new, D_j_coreg):
+def find_near_point(x, y, x_new, y_new, D_j_coreg, curve_type):
     current_points = np.column_stack((x, y))
     mirror_points = np.column_stack((x_new, y_new))
     D_j_coreg_T = D_j_coreg.T
@@ -741,7 +737,12 @@ def find_near_point(x, y, x_new, y_new, D_j_coreg):
 
     indexes_to_sort = []
 
-    position_indices = [np.where((D_j_coreg_T == point).all(axis=1))[0][0] for point in mirror_points[:-1]]
+    if curve_type == "not_loop":
+        ddd_mirror_points = mirror_points
+    else:
+        ddd_mirror_points = mirror_points[:-1]
+
+    position_indices = [np.where((D_j_coreg_T == point).all(axis=1))[0][0] for point in ddd_mirror_points]
 
     for idx, point_index in enumerate(position_indices):
         # if idx not in []:
@@ -873,7 +874,7 @@ def find_near_point(x, y, x_new, y_new, D_j_coreg):
 #
 #     return sorted_small_contour[:, 0], sorted_small_contour[:, 1]
 
-def order_points(b_x, b_y, x, y, x_inp, y_inp, corner_points = []):
+def order_points(b_x, b_y, x, y, x_inp, y_inp, corner_points = [], curve_type="loop"):
     # D_j_coreg[0], D_j_coreg[1], x, y, x_base, y_base
     big = np.column_stack((b_x, b_y))
     small = np.column_stack((x, y))
@@ -907,8 +908,9 @@ def order_points(b_x, b_y, x, y, x_inp, y_inp, corner_points = []):
     rotated_small = np.roll(sorted_small, -start_index, axis=0)
     rotated_small_inp = np.roll(sorted_small_inp, -start_index, axis=0)
 
-    rotated_small = np.append(rotated_small, [rotated_small[0]], axis=0)
-    rotated_small_inp = np.append(rotated_small_inp, [rotated_small_inp[0]], axis=0)
+    if curve_type == "loop":
+        rotated_small = np.append(rotated_small, [rotated_small[0]], axis=0)
+        rotated_small_inp = np.append(rotated_small_inp, [rotated_small_inp[0]], axis=0)
 
     return (
         rotated_small[:, 0],

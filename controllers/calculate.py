@@ -2,27 +2,20 @@ import json
 import time
 
 from flask import render_template
-import numpy as np
-from pandas.core.array_algos.transforms import shift
 
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import spsolve
-from sympy.geometry.entity import scale
-from werkzeug.debug.repr import missing
-import os
 
 from controllers import _Controller
 from utils import *
 from constants import MATERIALS_PATH
 
-import sys
 
 
 class Calculate(_Controller):
     def _post(self):
         interval = 200
         display_corner_points = np.array([])
-        # straight = True
         straight = bool(int(self.request_data.get('straight', True)))
 
         data = json.loads(self.request_data["data"])
@@ -34,18 +27,12 @@ class Calculate(_Controller):
 
         iterations = int(self.request_data["iter_count"])
 
-        # C_start = float(self.request_data['start_value'])
-        # C_end = float(self.request_data['end_value'])
-        # C_last = float(self.request_data.get('last_value', 0.0))
-        #
-
         general_l_imput = float(self.request_data.get('general_l'))
         general_l = general_l_imput or 15
         start_L = float(self.request_data.get('start_l', 20))
         L = start_L
-        # L = 1
         d_4 = L**4
-        scale_coef = 1.3
+        scale_coef = 1.2
 
         # parts = int(self.request_data.get('subitems', 50))
         parts = interval
@@ -83,8 +70,11 @@ class Calculate(_Controller):
         # x = x_base[::4]
         # y = y_base[::4]
 
-        x = x_base[::20]
-        y = y_base[::20]
+        skip = 1
+        gate = 500
+
+        x = x_base[::skip]
+        y = y_base[::skip]
 
         if curve_type == "not_loop":
             file_dataset_len = len(x) - 1
@@ -118,7 +108,7 @@ class Calculate(_Controller):
                     "lines+markers", "iteration input points", "black", {}, True
                 ]
             ],
-            equal=True,
+            # equal=True,
             save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
             filename=f"input_points"
         )
@@ -176,7 +166,8 @@ class Calculate(_Controller):
                 if curve_type == "loop":
                     P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y)
                 else:
-                    P_align_coef = None
+                    # P_align_coef = None
+                    P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y, roll_=False)
                 matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, P_align_coef=P_align_coef, extra_psis=psis_abs, aligns=aligns)
             else:
                 # C_ris /= C_step
@@ -245,7 +236,7 @@ class Calculate(_Controller):
             coreg_time = time.time()
             print(f"Время выполнения (coreg_time): {coreg_time - solution_time:.4f} секунд")
 
-            if iteration == (iterations - 1) or iteration == 3 or iteration == 9 or iteration == 12 or iteration == 15000:
+            if iteration == (iterations - 1):
                 qulity = 0
                 m_j_dif = np.array([*[M_j[0][i + 1] - M_j[0][i] for i in range(M_j.shape[1] - 1)], M_j[0][-1] - M_j[0][-2]])
                 M_j = np.vstack((M_j, m_j_dif))
@@ -355,7 +346,8 @@ class Calculate(_Controller):
                         continue
 
 
-            if curve_type == "loop":  # and iteration == 0:
+            # if curve_type == "loop":  # and iteration == 0:
+            if curve_type == "not_loop":  # and iteration == 0:
                 if iteration == 0:
 
                     start_1_iteration = time.time()
@@ -366,13 +358,13 @@ class Calculate(_Controller):
                     D_j_coreg_len = D_j_coreg.shape[1]
 
                     for index in range(len(x_base)):
-                        if index % 20 == 0 or "test_data" in file_name:
-                            i = (index * 10) % D_j_coreg_len
+                        if index % skip == 0 or "test_data" in file_name:
+                            i = (index * (parts // skip)) % D_j_coreg_len
                             point = (D_j_coreg[0, i], D_j_coreg[1, i])
                         else:
                             current_point = np.array([x_base[index], y_base[index]])
-                            start = (index * 10 - 500) % D_j_coreg_len
-                            end = (index * 10 + 500) % D_j_coreg_len
+                            start = (index * (parts // skip) - gate) % D_j_coreg_len
+                            end = (index * (parts // skip) + gate) % D_j_coreg_len
 
                             if start < end:
                                 interval = D_j_coreg[:, start:end]
@@ -422,7 +414,7 @@ class Calculate(_Controller):
                             filename="after_1_iter_find_skipped"
                         )
 
-                    x_near, y_near, indexes, old_positions, new_positions = find_near_point(x_base, y_base, x_with_skipped, y_with_skipped, D_j_coreg)
+                    x_near, y_near, indexes, old_positions, new_positions = find_near_point(x_base, y_base, x_with_skipped, y_with_skipped, D_j_coreg, curve_type)
 
                     find_near_point_time = time.time()
                     print(f"Время выполнения (find_near_point_time): {find_near_point_time - missing_ponts_time:.4f} секунд")
@@ -455,7 +447,7 @@ class Calculate(_Controller):
                             filename="after_1_iter_find_new_near_points"
                         )
 
-                    x, y, x_base, y_base, _, _ = order_points(D_j_coreg[0], D_j_coreg[1], x_near, y_near, x_base, y_base)
+                    x, y, x_base, y_base, _, _ = order_points(D_j_coreg[0], D_j_coreg[1], x_near, y_near, x_base, y_base, curve_type=curve_type)
 
                     if SHOW_NEW_TYPE_PLOTS:
                         display_plot_plotly(
@@ -515,7 +507,7 @@ class Calculate(_Controller):
                             display_corner_points_positions = display_corner_points_positions[2::5]
 
                     find_near_point_start = time.time()
-                    x, y, indexes, old_positions, new_positions = find_near_point(x_base, y_base, x, y, D_j_coreg_without_corners)
+                    x, y, indexes, old_positions, new_positions = find_near_point(x_base, y_base, x, y, D_j_coreg_without_corners, curve_type)
 
                     if SHOW_NEW_TYPE_PLOTS:
                         display_plot_plotly(
@@ -607,7 +599,7 @@ class Calculate(_Controller):
                     #         point_type = np.delete(point_type, cp)
 
                     order_points_start = time.time()
-                    x, y, x_base, y_base, remove_pints, new_points = order_points(D_j_coreg_without_corners[0], D_j_coreg_without_corners[1], x, y, x_base, y_base)
+                    x, y, x_base, y_base, remove_pints, new_points = order_points(D_j_coreg_without_corners[0], D_j_coreg_without_corners[1], x, y, x_base, y_base, curve_type=curve_type)
 
                     if len(remove_pints) > 0:
                         for ze in range(len(remove_pints)):
@@ -788,7 +780,7 @@ class Calculate(_Controller):
 
 
 
-        return {"plots": response_images}
+        return {"plots": response_images, "S": M_j[0, ::40].tolist()}
 
     def _get(self):
         return render_template("main_page.html")
