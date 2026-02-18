@@ -42,6 +42,8 @@ class Calculate(_Controller):
         save_data = bool(int(self.request_data['save_data']))
         file_name = self.request_data.get('file_name', "").split(".")[0]
 
+        equal = bool(int(self.request_data['equal'])) if "equal" in self.request_data else None
+
         if curve_type == "not_loop":
             aligns = [
                 int(self.request_data.get('align_1', 0)),
@@ -108,9 +110,9 @@ class Calculate(_Controller):
                     "lines+markers", "iteration input points", "black", {}, True
                 ]
             ],
-            # equal=True,
+            equal=equal if equal is not None else True,
             save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
-            filename=f"input_points"
+            filename=f"input_points_"
         )
 
         for iteration in range(iterations):
@@ -228,7 +230,7 @@ class Calculate(_Controller):
                         y[display_corner_points.astype(int)]
                     ], "markers", "Imagine corners", "red", {"marker": {"size": 10}}, True],
                 ],
-                equal=True,
+                equal=equal if equal is not None else True,
                 save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
                 filename=f"after_{iteration+1}_new_points"
             )
@@ -317,7 +319,7 @@ class Calculate(_Controller):
                                 y_base[top_4_candidates],
                             ], "markers", "Corner pints", "purple", {"marker": {"size": 10}}, True],
                         ],
-                        equal=True,
+                        equal=equal if equal is not None else True,
                         save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
                         filename=f"after_{iteration + 1}_iter_force_points{('_'+str(corner_move)) if iteration == (iterations - 1) else ''}",
                     )
@@ -409,7 +411,7 @@ class Calculate(_Controller):
                                     [x_with_skipped, y_with_skipped],
                                     "markers", "Bace new points", "#C2A4FF", {}, True],
                             ],
-                            equal=True,
+                            equal=equal if equal is not None else True,
                             save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
                             filename="after_1_iter_find_skipped"
                         )
@@ -442,7 +444,7 @@ class Calculate(_Controller):
                                 [new_positions.T, "markers", "Pont new position", "#D7101F", {}, True],
                                 [old_positions.T, "markers", "Pont old position", "#D08D00", {}, True],
                             ],
-                            equal=True,
+                            equal=equal if equal is not None else True,
                             save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
                             filename="after_1_iter_find_new_near_points"
                         )
@@ -463,7 +465,7 @@ class Calculate(_Controller):
                                 [D_j_coreg, "markers", "All new points", "#015AC8", {}, True],
                                 [[x, y], "markers", "Bace new points", "#C2A4FF", {}, True],
                             ],
-                            equal=True,
+                            equal=equal if equal is not None else True,
                             save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
                             filename=f"after_1_iter_after_ordering"
                         )
@@ -497,7 +499,7 @@ class Calculate(_Controller):
                                 [
                                     [D_j_coreg_without_corners, "lines+markers", "New iter", "#015AC8", {}, True],
                                 ],
-                                equal=True,
+                                equal=equal if equal is not None else True,
                                 save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
                                 filename=f"after_{iteration + 1}_without_imagine_points",
                             )
@@ -541,7 +543,7 @@ class Calculate(_Controller):
                                     D_j_coreg_without_corners, "lines+markers", "D_j_coreg", "pink", {}, True
                                 ],
                             ],
-                            equal=True,
+                            equal=equal if equal is not None else True,
                             save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
                             filename=f"after_{iteration+1}_iter_find_new_near_points",
                         )
@@ -671,7 +673,7 @@ class Calculate(_Controller):
                                     y[display_corner_points.astype(int)]
                                 ], "markers", "Imagine corners", "black", {}, True],
                             ],
-                            equal=True,
+                            equal=equal if equal is not None else True,
                             save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
                             filename=f"after_{iteration+1}_iter_find_missing_spring",
                             background_image = f"/Users/dmyrto_koltsov/PycharmProjects/PDF/my_data/{file_name}.jpg"
@@ -694,7 +696,7 @@ class Calculate(_Controller):
                                     "lines", "all", "#054907", {}, True
                                 ],
                             ],
-                            equal=True,
+                            equal=equal if equal is not None else True,
                             save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
                             filename="top_points_candidats_on_contur"
                         )
@@ -750,7 +752,7 @@ class Calculate(_Controller):
                                         y[display_corner_points.astype(int)]
                                     ], "markers", "Imagine corners", "black", {}, True],
                                 ],
-                                equal=True,
+                                equal=equal if equal is not None else True,
                                 save_path=f"{MATERIALS_PATH}smooth_contour/{file_name.rsplit('_', 1)[0]}/plots/d_{general_l}/{puzzle_index}/{direction}/",
                                 filename=f"after_{iteration + 1}_iter_with_corners_points",
                                 # background_image = f"/Users/dmyrto_koltsov/PycharmProjects/PDF/my_data/{file_name}.jpg"
