@@ -66,43 +66,30 @@ class Calculate(_Controller):
             data = np.array(data)
 
         x = x_base = data[:, 0]
-        y = y_base = data[:, 1]
-        point_type = data[:, 2]
+        # y = y_base = data[:, 1]
+        point_type = data[:, 1]
 
         response_images = []
 
         for iteration in range(iterations):
-            if curve_type == "loop":
-                d = vector_cords(file_dataset_len, x, y)
-            else:
-                d = vector_cords_not_loop(file_dataset_len, x, y)
-            psis_sin, psis = align_value_count(file_dataset_len, d, curve_type)
-
-            if curve_type == "not_loop":
-                d_abs = np.array([d[0], [1, 0], d[-1], [1, 0]])
-                psis_sin_abs, psis_abs = align_value_count(4, d_abs, curve_type)
-            else:
-                psis_sin_abs, psis_abs = None, None
-
-            # if display_aligns_table:
-            #     display_table((psis_sin, np.degrees(psis), psis), columns_name = ["SIN в радіанах", "Градуси", "Радіани"])
-            #     pass
-            S_input = len_value_count(file_dataset_len, d)
+            S_input = np.ones(file_dataset_len)
+            # S_input[[6,13,20,27]] = 2
+            S_input[[6,13,20,27]] = 0.5
 
             # print(S_input)
 
             if iteration == 0:
                 C_ris = C_start
                 C = C_coef_value_count(file_dataset_len, S_input, C_start)
-                matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, extra_psis=psis_abs, aligns=aligns)
+                matrix, coefs = matrix_coefs(file_dataset_len, x, S_input, C, point_type, curve_type)
             elif iteration > 0 and iteration < iterations:
                 C_ris *= C_step
                 C *= C_step
-                if curve_type == "loop":
-                    P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y)
-                else:
-                    P_align_coef = None
-                matrix, coefs = matrix_coefs(file_dataset_len, S_input, psis, C, point_type, curve_type, P_align_coef=P_align_coef, extra_psis=psis_abs, aligns=aligns)
+                # if curve_type == "loop":
+                #     P_align_coef = P_coef_count(file_dataset_len, d, x_base, y_base, x, y)
+                # else:
+                #     P_align_coef = None
+                matrix, coefs = matrix_coefs(file_dataset_len, x, S_input, C, point_type, curve_type,)
             else:
                 C_ris /= C_step
                 C /= C_step
@@ -111,6 +98,7 @@ class Calculate(_Controller):
 
             solution = np.linalg.solve(matrix, coefs)
 
+            display_solution = solution.reshape(solution.shape[0] // 8, 8).transpose()
 
             # ---- current_task --------
             extra_psis = [solution[1], solution[-3]]
@@ -119,39 +107,14 @@ class Calculate(_Controller):
             # ---- current_task --------
 
 
-            # if display_solution_table:
-            #     display_table(np.transpose(solution.reshape(points_count, 8)), rows_name=["W_0", "θ_0", "M_0", "Q_0", "W_l", "θ_l", "M_l", "Q_l"], bad_data = False, revert=True)
-            a_norm, b_norm, c_l_norm, d_l_norm, c_n_norm, d_n_norm = vector_normalization(d, S_input, solution, curve_type)
             sol_half = midle_point_params_vector(file_dataset_len, S_input, solution, list_of_patrs)
-            B_j, c_n_norm_B_j, d_n_norm_B_j = midle_point_count(file_dataset_len, list_of_patrs, x, y, S_input, a_norm, b_norm, sol_half)
-            M_j, M_j_coreg, D_j, D_j_coreg = new_position_count(file_dataset_len, S_input, x, y, solution, c_l_norm, c_n_norm, c_n_norm_B_j, d_l_norm, d_n_norm, d_n_norm_B_j, sol_half, list_of_patrs, B_j, curve_type)
+            B_j = midle_point_count(file_dataset_len, list_of_patrs, x, S_input, sol_half)
+            M_j, D_j = new_position_count(file_dataset_len, S_input, x, solution, sol_half, list_of_patrs, B_j, curve_type)
 
-            x = D_j_coreg[0, ::parts]
-            y = D_j_coreg[1, ::parts]
+            x = D_j[0, ::parts]
+            # y = D_j[1, ::parts]
 
-
-
-            if iteration == (iterations - 1):
-                if save_data:
-                    with open(f"{file_name}_data.txt", "w") as f:
-                        for i in np.transpose(D_j_coreg):
-                            f.write(f"{i[0]} {i[1]}\n")
-
-                    # моменты
-                    M_x = M_j_coreg[0]
-                    M_y = M_j_coreg[1]
-                    with open(f"{file_name}_moments.txt", "w") as f:
-                        for i in range(len(M_y)):
-                            f.write(f"{M_x[i]} {M_y[i]}\n")
-
-                qulity = 0
-                for i in range(len(M_j_coreg[1])):
-                    qulity += M_j_coreg[1][i]**2*M_j_coreg[2][i]
-
-                print("Якість", qulity)
-                print("Довжина", M_j_coreg[0][-1])
-
-            points_data = [[x_base, y_base], [D_j_coreg[0], D_j_coreg[1]], [x, y]]
+            points_data = [[np.arange(len(x_base)), x_base], [np.arange(len(D_j[0])) / parts, D_j[0]], [np.arange(len(x)), x]]
             colours = ['ob', '-y', '']
             labels = ["Input points", "Сontinuous contour", ""]
             annotate_step = [0, 0, (file_dataset_len//10+1)]
@@ -161,14 +124,14 @@ class Calculate(_Controller):
             fixed_points = [[], []]
             for i in range(file_dataset_len+1):
                 if point_type[i] == 0:
-                    spline_points[0].append(x[i])
-                    spline_points[1].append(y[i])
+                    spline_points[0].append(i)
+                    spline_points[1].append(x[i])
                 elif point_type[i] == 1:
-                    fixed_points[0].append(x[i])
-                    fixed_points[1].append(y[i])
+                    fixed_points[0].append(i)
+                    fixed_points[1].append(x[i])
                 elif point_type[i] == 2:
-                    imagine_points[0].append(x[i])
-                    imagine_points[1].append(y[i])
+                    imagine_points[0].append(i)
+                    imagine_points[1].append(x[i])
 
             if spline_points[0]:
                 points_data.append(spline_points)
@@ -192,7 +155,7 @@ class Calculate(_Controller):
             plot = display_plot(points_data, labels=labels, color_line=colours,
                                 title="", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
 
-            # plot = display_plot([[M_j_coreg[0], M_j_coreg[1]]], labels = ['Моменти'], color_line = ['-m'],
+            # plot = display_plot([[np.arange(len(M_j[0])), M_j[0]]], labels = ['Моменти'], color_line = ['-m'],
             #                     title="", annotate_step=annotate_step, points_count=len(x), alpha=alpha)
 
             flike = BytesIO()
@@ -214,23 +177,23 @@ class Calculate(_Controller):
             #         point_type = np.insert(point_type, 1, 2)
             #     file_dataset_len = (len(x) - 1)
 
-            if curve_type != "loop" and iteration <= 4 and (len(x) - len(x_base)) < 30:
-                for im in range(2, int(parts**0.5)+1):
-                    if parts % im == 0:
-                        im_points_count = im
-                        break
-                else:
-                    im_points_count = parts
+            # if curve_type != "loop" and iteration <= 4 and (len(x) - len(x_base)) < 30:
+            #     for im in range(2, int(parts**0.5)+1):
+            #         if parts % im == 0:
+            #             im_points_count = im
+            #             break
+            #     else:
+            #         im_points_count = parts
+            #
+            #     x = D_j_coreg[0, ::parts//im_points_count]
+            #     y = D_j_coreg[1, ::parts//im_points_count]
+            #
+            #     for i in range(len(x) - len(point_type)):
+            #         point_type = np.insert(point_type, 1, 2)
+            #
+            #     file_dataset_len = (len(x) - 1)
 
-                x = D_j_coreg[0, ::parts//im_points_count]
-                y = D_j_coreg[1, ::parts//im_points_count]
-
-                for i in range(len(x) - len(point_type)):
-                    point_type = np.insert(point_type, 1, 2)
-
-                file_dataset_len = (len(x) - 1)
-
-        return {"plots": response_images}
+        return {"plots": response_images, "data": list(D_j[0])}
 
     def _get(self):
         return render_template("main_page.html")
